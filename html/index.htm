@@ -355,33 +355,46 @@
 					zoomevent.last = URLWatcher['lastClickedTime'];					
 				}				
 			}
-
-			console.log('zoomevent(): Zoom event on ' + URLWatcher['lastClicked']);
-			console.log(eventdata);
-			let Np = URLWatcher['plots'].length;
 			let zoomReset = eventdata['xaxis.autorange'] == true 
 							&& eventdata['yaxis.autorange'] == true
+
+			if (zoomReset) {
+				console.log('zoomevent(): Zoom reset event on ' + URLWatcher['lastClicked'] + " Event data:");
+			} else {
+				console.log('zoomevent(): Zoom event on ' + URLWatcher['lastClicked'] + " Event data:");
+			}
+			console.log(eventdata);
+
+			let Np = URLWatcher['plots'].length;
 			let id;
 			for (let p = 0; p < Np; p++) {
-				console.log("Checking " + p)
+				let eventdatac = JSON.parse(JSON.stringify(eventdata));
+
+				console.log("zoomevent(): Checking " + p)
 				id = URLWatcher['plots'][p]['id']
 				plot = document.getElementById(id);
-				if (id === URLWatcher['lastClicked']) {
-					continue; // Don't update plot that was zoomed.
+
+				// Needed b/c zoom event does not use yaxis.range that was set on initial plot.
+				if (URLWatcher['plots'][p]['paramID'] === 'fails') {						
+					// TODO: Range values for 'fails' appear in two places in code. 
+					eventdatac['yaxis.range[0]'] = -0.9;
+					eventdatac['yaxis.range[1]'] = 8;
+					eventdatac['yaxis.autorange'] = false;
+					console.log('zoomevent(): Setting yaxis.range on ' + URLWatcher['plots'][p]['paramID']);
 				}
-				if (zoomReset) {
-					console.log('zoomevent(): Zoom event reset on ' + URLWatcher['lastClicked']);
+
+				if (id === URLWatcher['lastClicked'] && URLWatcher['plots'][p]['paramID'] !== 'fails') {
+					console.log('zoomevent(): No action being taken for ' + URLWatcher['plots'][p]['paramID']);
 				} else {
-					eventdata = {
-						'xaxis.range[0]': eventdata['xaxis.range[0]'],
-						'xaxis.range[1]': eventdata['xaxis.range[1]']
-					}
+					delete eventdatac['yaxis.range[0]'];
+					delete eventdatac['yaxis.range[1]'];
+					console.log('zoomevent(): Calling Plotly.relayout() on ' + id + ' using:');
+					console.log(eventdatac);
+					// Ideally would turn off zoom event here then re-enable it
+					// after relayout performed. Could not get this to work - kept
+					// getting recursive calls.
+					Plotly.relayout(id, eventdatac);
 				}
-				console.log('zoomevent(): Calling Plotly.relayout() on ' + id);
-				// Ideally would turn off zoom event here then re-enable it
-				// after relayout performed. Could not get this to work - kept
-				// getting recursive calls.
-				Plotly.relayout(id, eventdata);
 			}
 		}
 
@@ -392,7 +405,7 @@
 			line: {shape: 'hv', color: '#7F7F7F'},
 		}
 
-		let layout = {
+		let layout_base = {
 			connectgaps: false,
 			showlegend: true,			
 			legend: {"x": 0, "y": 1, bgcolor: 'rgba(255,255,255,0.5)'},
@@ -421,9 +434,10 @@
 
 		options = {"displayModeBar": false};
 
+		let layout = [];
 		function doplots(p, rows) {
 
-			let layoutp = JSON.parse(JSON.stringify(layout));
+			layout[p] = JSON.parse(JSON.stringify(layout_base));
 
 			let plotMsg = "Plotly.d3.csv(): plot #" + p + " plotting started.";
 			timeit(plotMsg);
@@ -436,13 +450,13 @@
 			let plot = document.getElementById(id);
 
 			if (URLWatcher['plots'][p]['paramID'] === 'fails') {
-				layoutp.yaxis.range = [-0.9, 8];
-				layoutp.yaxis.tickformat = ',d';
+				layout[p].yaxis.range = [-0.9, 8];
+				layout[p].yaxis.tickformat = ',d';
 			}
-			layoutp.hovermode = true;
+			layout[p].hovermode = true;
 
 			Plotly
-				.newPlot(id, [trace], layoutp, options)
+				.newPlot(id, [trace], layout[p], options)
 				.then(function() {
 					$(plot).on('mousedown', () => {
 						console.log(id + ' mousedown');
