@@ -51,12 +51,16 @@ for (let testName in urlTests) {
 	let file = __dirname + "/log/" + testName + "/settings.json";
 	let fullemail = urlTests[testName]["emailAlertsTo"];
 
-	urlTests[testName]["emailAlertsTo"] = maskEmailAddress(urlTests[testName]["emailAlertsTo"])
-	urlTests[testName]["emailAlertsTo"] = fullemail;
+	// Mask email address.
+	urlTests[testName]["emailAlertsTo"] = maskEmailAddress(fullemail)
 
 	// Write configuration file to web-accessible directory
-	fs.writeFile(file, JSON.stringify(urlTests[testName], null, 4), 
-										() => {console.log("main(): Wrote " + file);});	
+	fs.writeFile(file, JSON
+						.stringify(urlTests[testName], null, 4), 
+						() => {console.log("main(): Wrote " + file);});	
+
+	// Reset email address.
+	urlTests[testName]["emailAlertsTo"] = fullemail;
 
 	// Create array to store past results.
 	urlTests[testName].results = [];
@@ -211,6 +215,7 @@ function server() {
 function report(testName, work) {
 
 	let statusCode = work.statusCode;
+
 	if (statusCode === undefined) {
 		statusCode = -1;
 	}
@@ -236,7 +241,8 @@ function report(testName, work) {
 	}
 	if (!fs.existsSync(work.entryFile)) {
 		// Write header if first entry
-		fs.appendFileSync(work.entryFile, "Date,status,ttfb,dl,total,size,fails\n", 'utf8');
+		fs.appendFileSync(work.entryFile,
+							"Date,status,ttfb,dl,total,size,fails\n", 'utf8');
 	}
 	fs.appendFileSync(work.entryFile, entry, 'utf8');
 
@@ -291,7 +297,7 @@ function geturl(testName) {
 			"timeout": urlTests[testName].timeout
 		};
 
-		console.log('geturl(): ' + work.requestStartTime.toISOString() + ' Requesting: '+ url);
+		console.log('geturl(): ' + work.requestStartTime.toISOString() + ' Requesting: ' + url);
 		request.get(opts, function (error, response, body) {
 
 			work.statusCode = undefined;
@@ -307,7 +313,7 @@ function geturl(testName) {
 					console.log('geturl(): Response error. Calling urlError().');
 					urlError(error, work);
 				} else {
-					console.log('geturl(): Response error; urlError already called. ');
+					console.log('geturl(): Response error; urlError already called.');
 				}
 				return;
 			}
@@ -331,7 +337,7 @@ function geturl(testName) {
 				console.log('geturl(): on("error") event. Calling urlError().');
 				urlError(error, work);
 			} else {
-				console.log('geturl(): on("error") event; urlError already called. ');
+				console.log('geturl(): on("error") event; urlError already called.');
 			}
 		})
 	} else if (url.match(/^ftp/)) {
@@ -377,6 +383,7 @@ function geturl(testName) {
 }
 
 function computeDirNames(testName, work) {
+
 	let timeStamp = new Date(work.requestStartTime).toISOString().replace(/Z/g,'');
 	work.workDirectory = config.app.logDirectory + "/" + testName + "/requests";
 	work.workFile = work.workDirectory + "/" + timeStamp + ".json";
