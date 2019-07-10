@@ -48,25 +48,30 @@ if (config.app.emailStatus) {
 for (let testName in urlTests) {
 
 	// Prepare configuration file with masked email address
-	let file = __dirname + "/log/" + testName + "/settings.json";
-	let fullemail = urlTests[testName]["emailAlertsTo"];
+	let settingsDir = __dirname + "/log/" + testName;
+	let settingsFile = settingsDir + "/settings.json";
+	if (!fs.existsSync(settingsDir)) {
+		mkdirp.sync(settingsDir);
+	}
+
+	let fullEmail = urlTests[testName]["emailAlertsTo"];
 
 	// Mask email address.
-	urlTests[testName]["emailAlertsTo"] = maskEmailAddress(fullemail)
+	urlTests[testName]["emailAlertsTo"] = maskEmailAddress(fullEmail)
 
 	// Write configuration file to web-accessible directory
-	fs.writeFile(file, JSON
+	fs.writeFile(settingsFile, JSON
 						.stringify(urlTests[testName], null, 4), 
 						(err) => {
 							if (err) {
 								console.log(err);
 							} else {
-								console.log("main(): Wrote " + file);
+								console.log("main(): Wrote " + settingsFile);
 							}
 						});
 
 	// Reset email address.
-	urlTests[testName]["emailAlertsTo"] = fullemail;
+	urlTests[testName]["emailAlertsTo"] = fullEmail;
 
 	// Create array to store past results.
 	urlTests[testName].results = [];
@@ -89,7 +94,8 @@ function readConfig(configFile) {
 		console.log("readConfig(): Read " + configFile);
 	} else {
 		// Allow app to start even if email configuration file not found.
-		console.log("readConfig(): File " + configFile + " not found.");
+		console.log("readConfig(): File " + configFile + " not found. Exiting.");
+		process.exit(1);
 	}
 
 	if (!config.app.emailMethod) {
