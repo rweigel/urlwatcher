@@ -57,7 +57,13 @@ for (let testName in urlTests) {
 	// Write configuration file to web-accessible directory
 	fs.writeFile(file, JSON
 						.stringify(urlTests[testName], null, 4), 
-						() => {console.log("main(): Wrote " + file);});	
+						(err) => {
+							if (err) {
+								console.log(err);
+							} else {
+								console.log("main(): Wrote " + file);
+							}
+						});
 
 	// Reset email address.
 	urlTests[testName]["emailAlertsTo"] = fullemail;
@@ -582,7 +588,7 @@ function test(testName, work) {
 
 	let to, body, subject;
 	if (sendFailEmail || sendPassEmail) {
-		to = urlTests[testName].email;
+		to = urlTests[testName]['emailAlertsTo'];
 		body = text + text2;		
 	}
 
