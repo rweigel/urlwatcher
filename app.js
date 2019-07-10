@@ -460,7 +460,7 @@ function test(testName, work) {
 	let L = results.length;
 
 	if (results[L-1].error) {
-		let subject = "❌: URLWatcher " + testName + ": " + work.errorMessage;
+		let subject = "❌: URLWatcher " + testName + " on " + app.config.hostname + ": " + work.errorMessage;
 		if (L == 1) {
 			email(urlTests[testName].email, subject);
 		} else {

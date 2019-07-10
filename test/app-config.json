@@ -9,7 +9,8 @@
 		"__comment": "'sendmail' (use if able to send emails from local system) or 'nodemailer' (send using external system)",
 		"emailMethod": "sendmail",
 
-		"debug": true,
+		"__comment": "hostname is used in the subject line of email messages. Defaults to that returned by os.hostname()",
+		"hostname": "",
 
 		"__comment": "Location for log files. Path is relative to location of app.js",
 		"logDirectory": "log",
