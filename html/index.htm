@@ -3,22 +3,35 @@
 	<script src="html/js/purl.js"></script>
 	<script src="html/js/jquery-3.4.1.min.js"></script>
 	<link href="html/favicon.ico" rel="icon" type="image/x-icon" />
+	<style>
+		html * {
+			font-family: Times;
+		}
+		a:link {
+			color: black;
+		}
+		a:visited {
+			color: black;
+		}
+</style>	
 </head>
 <body>
 
 	<div id="header" style="text-align:center">
-		Test: <select id="testDropdown" style="display:none;"></select>
-		&nbsp;|&nbsp;
-		Date: <select id="dateDropdown" style="display:none;"></select>
+		<select id="testDropdown" style="display:none;"></select>
+		<select id="dateDropdown" style="display:none;"></select>
 		&nbsp;|&nbsp;
 		<span id="links">
-			<a id="logDirectory" style="display:none;">Log files</a>
+			<a id="logDirectory" target="_blank" style="display:none;">Log directory</a>
 			&nbsp;|&nbsp;
-			<a id="testSettings" style="display:none;">Test settings</a>
+			<a id="testSettings" target="_blank" style="display:none;">Test settings</a>
 		</span>
 		&nbsp;|&nbsp;
-		<span id="timezone"></span>		
-		<div id="status"></div>
+		<span id="timezone"></span>
+		<span id="testDataSpan" style="display:none;">
+			&nbsp;|&nbsp;	
+			<a id="testDataLink" target="_blank">Test file</a>
+		</span>
 	</div>
 	<div id="plots"></div>
 	<script>
@@ -28,6 +41,7 @@
 			'displayLocalTime': true, // Time stamps in local time
 			'dropdowns': {},
 			'lastClicked': '',
+			'settings': {},
 			'plots':
 				[
 					{
@@ -59,9 +73,9 @@
 			return;			
 		}
 
-		console.log('window.hashchange event: Hash changed.');
-		console.log('evt.originalEvent = ' + (evt.originalEvent ? true : false))
-		console.log('evt.isTrigger = ' + (evt.isTrigger ? true : false))
+		console.log('hashchange(): window.hashchange event: Hash changed.');
+		console.log('hashchange(): evt.originalEvent = ' + (evt.originalEvent ? true : false))
+		console.log('hashchange(): evt.isTrigger = ' + (evt.isTrigger ? true : false))
 		console.log(evt);
 
 		let tests = Object.keys(URLWatcher['dropdowns']);
@@ -69,11 +83,11 @@
 
 		if (test) {
 			if (tests.indexOf(test) == -1) {
-				alert("window.hashchange: " + test + " is not in list of available tests: " + tests.join(",") + ".");
+				alert("hashchange(): window.hashchange: " + test + " is not in list of available tests: " + tests.join(",") + ".");
 				test = tests[0];
 			}
 		} else {
-			console.log('window.hashchange: No test in hash. Setting to first test in list.');
+			console.log('hashchange(): window.hashchange: No test in hash. Setting to first test in list.');
 			test = tests[0];
 		}
 
@@ -137,8 +151,12 @@
 
 			let plotMsg = 'window.onhashchange: Plotting started';
 
+			getJSON('log/' + test + '/settings.json', function (data) {
+				URLWatcher['settings'][test] = data;
+				xplot(logFile, test);
+			});
+
 			//timeit(plotMsg)
-			xplot(logFile)
 			//plot(logFile, "", 
 			//		() => timeit(plotMsg, plotMsg.replace("started", "took {}")));
 		});
@@ -322,7 +340,7 @@
 	})
 
 	// Main plot function
-	function xplot(logFile, title, cb) {
+	function xplot(logFile, test, cb) {
 
 		var vp = viewportWH();
 		var height = vp.height
@@ -398,14 +416,31 @@
 			}
 		}
 
+		function clickevent(eventdata) {
+			console.log(eventdata);
+
+			d = new Date(eventdata['points'][0]['x']);
+			console.log(d);
+			if (URLWatcher['displayLocalTime']) {
+				off = d.getTimezoneOffset()*60000;
+				//d.setTime(d.getTime() + off);
+				console.log(d);
+			}
+			console.log(d.toISOString())
+			$('#testDataLink')
+				.attr('href',
+					'log/' + test + '/requests/' + d.toISOString().replace("Z", "") + '.json');
+			$('#testDataSpan').show();
+		}
+
 		let trace = {
 			type: "bar",
-			fill: 'tozeroy',
-			connectgaps: false,
-			line: {shape: 'hv', color: '#7F7F7F'},
+			marker: {color: 'black', line: {color: 'black', width: 2, color: 'black'}}
 		}
 
 		let layout_base = {
+			font: {family: 'Times'},
+			hovermode:'closest',
 			connectgaps: false,
 			showlegend: true,			
 			legend: {"x": 0, "y": 1, bgcolor: 'rgba(255,255,255,0.5)'},
@@ -437,23 +472,38 @@
 		let layout = [];
 		function doplots(p, rows) {
 
-			layout[p] = JSON.parse(JSON.stringify(layout_base));
+			let id = URLWatcher['plots'][p]['id'];
+			let plot = document.getElementById(id);
+			let paramID = URLWatcher['plots'][p]['paramID'];
 
 			let plotMsg = "Plotly.d3.csv(): plot #" + p + " plotting started.";
 			timeit(plotMsg);
+
+			layout[p] = JSON.parse(JSON.stringify(layout_base));
+			layout[p].hovermode = true;
+
 			if (!trace.x) {
 				trace.x = unpack(rows, 'Date');
 			}
-			trace.name = URLWatcher['plots'][p]['paramName'];
-			trace.y = unpack(rows, URLWatcher['plots'][p]['paramID']);
-			let id = URLWatcher['plots'][p]['id'];
-			let plot = document.getElementById(id);
 
-			if (URLWatcher['plots'][p]['paramID'] === 'fails') {
+			trace.y = unpack(rows, URLWatcher['plots'][p]['paramID']);
+			trace.name = URLWatcher['plots'][p]['paramName'];
+
+			trace.marker.line.width = 0;
+
+			if (paramID === 'fails') {
+				trace.marker.line.width = 2;
 				layout[p].yaxis.range = [-0.9, 8];
 				layout[p].yaxis.tickformat = ',d';
 			}
-			layout[p].hovermode = true;
+
+			if (paramID === 'ttfb') {
+				trace.name = trace.name 
+							+ "; alert threshold = " 
+							+ URLWatcher['settings'][test]['tests']['firstByte']
+			}
+
+
 
 			Plotly
 				.newPlot(id, [trace], layout[p], options)
@@ -468,6 +518,7 @@
 						URLWatcher['lastClickedTime'] = new Date().getTime();
 					});
 					plot.on('plotly_relayout', zoomevent);
+					plot.on('plotly_click', clickevent);
 					timeit(plotMsg, plotMsg.replace("started", "took {}"));
 					p = p + 1;
 					if (p < URLWatcher['plots'].length) {		
