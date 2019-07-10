@@ -1,6 +1,6 @@
 const request = require("request");
-const crypto = require("crypto");
 const fs = require("fs");
+const os = require('os');
 var prettyHtml = require('json-pretty-html').default;
 const sendmail = require('sendmail')();
 const nodemailer = require('nodemailer');
@@ -9,6 +9,19 @@ var sver = require('semver');
 // Node 10 has native support for recursive directory creation.
 var mkdirp = require('mkdirp'); 
 
+// TODO: This is native in Node 6.
+const crypto = require("crypto");
+
+const dns = require('dns');
+
+if (0) {
+	dns.lookup('iana.org', (err, address, family) => {
+	  console.log('address: %j family: IPv%s', address, family);
+		console.log(os.hostname());
+		process.exit(0);
+	});
+}
+
 if (!sver.gte(process.version,'6.0.0')) {
 	console.log(
 			clc.red("node.js version >= 6 required. node.js -v returns "
@@ -16,12 +29,6 @@ if (!sver.gte(process.version,'6.0.0')) {
 			+ ". See README for instructions on upgrading using nvm."));
 	process.exit(1);
 }
-
-process.on('uncaughtException', function(err) {
-	// TODO: Send email?
-	console.log('main(): Uncaught exception: ');
-	console.log(err);
-})
 
 process.on('exit', function () {
 	console.log("main(): process.on('exit') called.");
@@ -34,11 +41,26 @@ process.on('SIGINT', function () {
 })
 
 let config = readConfig(process.argv[2] || "app-config.json");
+
+config.app.hostname = config.app.hostname || os.hostname();
+
+process.on('uncaughtException', function(err) {
+	console.log('main(): Uncaught exception: ');
+	console.log(err);
+	if (config.app.emailStatus) {
+		email(config.app.emailStatusTo, "URLWatcher exception on " + config.app.hostname + " at " + (new Date()).toISOString(), err);
+		console.log('main(): Sent email to ' + config.app.emailStatusTo);
+	} else {		
+		console.log('main(): Not sending email b/c emailStatus = false.');
+	}
+})
+
 let urlTests = readTests();
 
 if (config.app.emailStatus) {
+	console.log("main(): Sent start-up message to " + config.app.emailStatusTo);	
 	let html = prettyHtml(urlTests);
-	email(config.app.emailStatusTo, "URLWatcher started at "
+	email(config.app.emailStatusTo, "URLWatcher started on " + config.app.hostname + " at "
 			+ (new Date()).toISOString(), "Configuration:<br/>" + html);	
 } else {
 	console.log("main(): Not sending application start/stop messages"
@@ -66,7 +88,7 @@ for (let testName in urlTests) {
 							if (err) {
 								console.log(err);
 							} else {
-								console.log("main(): Wrote " + settingsFile);
+								console.log("main(): Wrote " + settingsFile.replace(__dirname + "/", ""));
 							}
 						});
 
@@ -135,7 +157,7 @@ function readTests() {
 	// Replace references to files with content of file.
 	for (let testName in urlTests) {
 		if (typeof(urlTests[testName]) === "string") {
-			console.log("readTests():\n  Reading and parsing " + __dirname + "/" + urlTests[testName])
+			console.log("readTests(): Reading and parsing\n  " + __dirname + "/" + urlTests[testName])
 			let tmp = fs.readFileSync(__dirname + "/" + urlTests[testName]);
 			urlTests[testName] = JSON.parse(tmp)[testName];		
 		}
@@ -725,10 +747,10 @@ function shutdown() {
 	if (config.app.emailStatus) {
 		console.log('shutdown(): Sending stop email.');
 		// TODO: Not working. See old URLWatch code, which worked.
-		email(config.app.emailStatusTo, "URLWatcher stopped at " + (new Date()).toISOString(), "", function () {process.exit(1);});
+		email(config.app.emailStatusTo, "URLWatcher stopped on " + config.app.hostname + " at " + (new Date()).toISOString(), "", function () {process.exit(0);});
 	} else {
 		console.log("shutdown(): Not sending stop message b/c emailStatus = false.");
-		process.exit(1);
+		process.exit(0);
 	}
 }
  

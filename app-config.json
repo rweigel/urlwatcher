@@ -3,7 +3,7 @@
 		"__comment": "emailStatus = true to send email to emailStatusTo on app start/stop.",
 		"emailStatus": false,
 
-		"__comment": "email address to send app start/stop messages",
+		"__comment": "comma-separated email addresses to send app start/stop messages",
 		"emailStatusTo": "!!!!",
 
 		"__comment": "'sendmail' (use if able to send emails from local system) or 'nodemailer' (send using external system)",
