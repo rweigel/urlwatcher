@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<head>
+	<script src="html/js/plotly-1.48.2.min.js"></script>
+	<script src="html/js/purl.js"></script>
+	<script src="html/js/jquery-3.4.1.min.js"></script>
+	<link href="html/favicon.ico" rel="icon" type="image/x-icon" />
+	<style>
+		html * {
+			font-family: Times;
+		}
+		a:link {
+			color: black;
+		}
+		a:visited {
+			color: black;
+		}
+</style>	
+</head>
+<body>
+
+	<div id="header" style="text-align:center">
+		<select id="testDropdown" style="display:none;"></select>
+		<select id="dateDropdown" style="display:none;"></select>
+		&nbsp;|&nbsp;
+		<span id="links">
+			<a id="logDirectory" target="_blank" style="display:none;">Log directory</a>
+			&nbsp;|&nbsp;
+			<a id="testSettings" target="_blank" style="display:none;">Test settings</a>
+		</span>
+		&nbsp;|&nbsp;
+		<span id="timezone"></span>
+
+		</span>
+	</div>
+	<div id="plots"></div>
+	<script>
+
+	let URLWatcher = 
+		{
+			'displayLocalTime': true, // Time stamps in local time
+			'dropdowns': {},
+			'lastClicked': '',
+			'settings': {},
+			'plots':
+				[
+					{
+						'id': 'plot0',
+						'paramID': 'fails',
+						'paramName': '# of test failures'
+					},
+					{
+						'id': 'plot1',
+						'paramID': 'ttfb',
+						'paramName': 'Time to First Byte [ms]'
+					}
+				]
+		}
+
+	// Main app initialization and update function
+	$(window).on('hashchange', hashchange)
+
+	// Note that we can't catch case where user modifies hash, but then
+	// hits enter after changing to original value. This will always result
+	// in a page reload.
+	function hashchange(evt) {
+
+		if (hashchange.block) {
+			// Before this function triggers a hash change, it
+			// sets hashchange.selfTrigger = true. This prevents
+			// that hash change from causing recursive hashchanges.
+			hashchange.selfTrigger = false;
+			return;			
+		}
+
+		console.log('hashchange(): window.hashchange event: Hash changed.');
+		console.log('hashchange(): evt.originalEvent = ' + (evt.originalEvent ? true : false))
+		console.log('hashchange(): evt.isTrigger = ' + (evt.isTrigger ? true : false))
+		console.log(evt);
+
+		let tests = Object.keys(URLWatcher['dropdowns']);
+		let test = getHashValue('test');
+
+		if (test) {
+			if (tests.indexOf(test) == -1) {
+				alert("hashchange(): window.hashchange: " + test + " is not in list of available tests: " + tests.join(",") + ".");
+				test = tests[0];
+			}
+		} else {
+			console.log('hashchange(): window.hashchange: No test in hash. Setting to first test in list.');
+			test = tests[0];
+		}
+
+		hashchange.selfTrigger = true;
+		setHashValue('test', test);
+
+		// Set test value in drop-down
+		$("#testDropdown").val(test);
+
+		// Get available dates for selected test
+		getDates(test, function() {
+
+			let dates = URLWatcher['dropdowns'][test];
+			let date = getHashValue("date");
+			if (date) {
+				if (dates.indexOf(date) == -1) {
+					console.log("window.hashchange: " + date + " is not in list of available tests: " + dates.join(",") + ".");
+					alert('Invalid date. Resetting to default.')
+					date = URLWatcher['dropdowns'][test][0];
+					setHashValue('date', date);
+					return;
+				}
+			} else {
+				console.log('window.hashchange: No date in hash. Setting to first test in list.');
+				date = URLWatcher['dropdowns'][test][0];
+			}
+
+			hashchange.selfTrigger = true;
+			setHashValue('date', date);
+
+			// Set date value in dropdown
+			$("#dateDropdown").val(date);
+
+			// Show time zone in header
+			if (URLWatcher['displayLocalTime']) {
+				let timeZoneName = Intl.DateTimeFormat().resolvedOptions().timeZone;
+				let split = new Date().toString().split("GMT");
+				//let timeZoneNumber = "GMT" + split[1]; // To get, e.g., GMT-0400.
+				$('#timezone').text("Time Zone: " + timeZoneName.replace("_"," "));
+			} else {
+				$('#timezone').text("Time Zone: GMT");
+			}
+
+			// Compute data file name
+			let logFile = "log/" + test + "/log/" + date + ".csv";
+
+			// Set tab/window title
+			document.title = "URLWatch: " + test;
+
+			// Set and show log directory link
+			$('#logDirectory')
+				.attr("href", "log/" + test)
+				.show();
+
+			// Set and show test settings file 
+			$('#testSettings')
+				.attr("href", "log/" + test + "/settings.json")
+				.show();
+
+			console.log("window.hashchange event: Calling plot('" + logFile + "'')");
+
+			let plotMsg = 'window.onhashchange: Plotting started';
+
+			getJSON('log/' + test + '/settings.json', function (data) {
+				URLWatcher['settings'][test] = data;
+				xplot(logFile, test);
+			});
+
+			//timeit(plotMsg)
+			//plot(logFile, "", 
+			//		() => timeit(plotMsg, plotMsg.replace("started", "took {}")));
+		});
+	};
+
+	$(window).on('resize',function () {
+		console.log("Window size change.");
+	});
+
+	// Drop-down change events
+	$('#dateDropdown').change(function(evt) {
+		let val = $(this).val();
+		console.log("#dateDropdown.change(): Changed to " + val);
+		if (evt.originalEvent) {
+			console.log("#dateDropdown.change(): Calling setHashValue()");
+			setHashValue('date', val);
+		} else {
+			console.log("#dateDropdown.change(): Not updating hash because event not triggered by user interaction.");
+		}
+	})
+
+	$('#testDropdown').change(function(evt) {
+		let val = $(this).val();
+		console.log("#testDropdown.change(): Changed to " + val);
+		if (evt.originalEvent) {
+			console.log("#testDropdown.change(): Calling setHashValue()");
+			setHashValue('test', val);
+		} else {
+			console.log("#testDropdown.change(): Not updating hash because event not triggered by user interaction.");
+		}
+	})
+
+	// Alternative to console.time()
+	function timeit(start, stop) {
+		if (timeit[start]) {
+			if (arguments.length == 1) {
+				console.error("Error: timeit() may have been started more than once with same start message of " + start);
+				return;
+			}
+			let t = new Date().getTime()-timeit[start];
+			console.log(stop.replace("{}",t + " ms"));
+			delete timeit[start];
+		} else {
+			timeit[start] = new Date().getTime();
+			console.log(start);				
+		}
+	}
+
+	// location.hash functions
+	function setHashValue(key, val) {
+		console.log("setHashValue(): Setting hash key " + key + " to " + val);
+		let obj = getHash();
+		obj[key] = val;
+		setHash(obj);
+	}
+	function setHash(obj) {
+		let hasho = window.location.hash;
+		console.log("setHash(): Setting hash to ");
+		console.log(obj);
+		let hash = "#";
+		let sep = "";
+		for (let key in obj) {
+			hash = hash + sep + key + "=" + obj[key];
+			if (sep === "") {
+				sep = "&";
+			}
+		}
+		if (hash === hasho) {
+			console.log("setHash(): New hash value equals old.");
+		} else {
+			console.log("setHash(): Setting hash to " + hash);
+			window.location.hash = hash;
+		}
+	}
+	function getHashValue(key) {
+		// https://github.com/allmarkedup/purl
+		let obj = getHash();
+		if (!obj) {
+			return undefined;
+		} else {
+			return obj[key];
+		}
+	}
+	function getHash() {
+		// https://github.com/allmarkedup/purl
+		return purl(window.location.href).fparam();
+	}
+	function checkHash() {
+
+		let obj = getHash();
+		let keys = Object.keys(obj);
+		let validkeys = keys.filter(value => ["test","date"].includes(value));
+		let invalidkeys = keys.filter(x => !["test","date"].includes(x));
+		for (let i = 0;i < invalidkeys.length;i++) {
+			delete obj[invalidkeys[i]];
+			console.log("checkHash(): Dropping unknown key " + invalidkeys[i]);
+		}
+		let tests = Object.keys(URLWatcher['dropdowns']);
+		if (obj["test"]) {
+			if (tests.indexOf(obj["test"]) == -1) {
+				console.log("checkHash(): " + obj["test"] + " is not in list of available tests: " + tests.join(",") + ".");
+				return false;
+			}
+		}
+		if (obj["date"]) {
+			console.log(URLWatcher['dropdowns'])
+			if (URLWatcher['dropdowns'][obj["dates"]].indexOf(obj["date"]) == -1) {
+				console.log("checkHash(): " + obj["date"] + " is not in list of available dates for this test: " + URLWatcher['dropdowns'][obj["test"]].join(","));
+				return false;
+			}
+		}
+		return true;
+	}
+
+	// Layout functions
+	function viewportWH() {
+		// Based on https://stackoverflow.com/a/22266547/1491619
+		// See also https://stackoverflow.com/a/8794370/1491619
+		var w = Math.max(document.documentElement.clientWidth, window.innerWidth || 0);
+		var h = Math.max(document.documentElement.clientHeight, window.innerHeight || 0);
+		return {width: w, height: h}
+	}
+
+	// AJAX JSON fetch
+	function getJSON(file, cb) {
+		console.log("getJSON(): Getting " + file);
+		let req = new XMLHttpRequest();
+		req.onreadystatechange = function() {
+			if (req.readyState === 4) {
+				if (req.status === 200) {
+					var data = JSON.parse(req.responseText);
+					if (cb) {
+						console.log("getJSON(): Got " + file);
+						cb(data);
+					}
+				}
+			}
+		};
+		req.open('GET', file);
+		req.send(); 
+	}
+
+	// Download list of tests
+	function getTests(cb) {
+		getJSON('log/tests.json', function (data) {
+			console.log(data);
+			$.each(data, function (i, p) {
+				URLWatcher['dropdowns'][data[i]] = [];
+				$('#testDropdown')
+					.append($('<option></option>')
+						.val(p)
+						.html(p));
+			})
+			$('#testDropdown').show();
+			cb();
+		})
+	}
+
+	function getDates(test, cb) {
+		$('#dateDropdown').html('');
+		getJSON('log/' + test + '/log/files.json', function (data) {
+			console.log(data);
+			let file;
+			$.each(data, function (i, p) {
+				file = p.replace(".csv", "");
+				URLWatcher['dropdowns'][test][i] = file;
+				$('#dateDropdown')
+					.append($('<option></option>')
+						.val(file)
+						.html(file));
+			})
+			$('#dateDropdown').show();
+			cb();
+		})
+	}
+
+	getTests(
+		function () {
+			console.log("getTests(): Test list loaded. Triggering hashchange.");
+			$(window).trigger('hashchange');
+	})
+
+	// Main plot function
+	function xplot(logFile, test, cb) {
+
+		var vp = viewportWH();
+		var height = vp.height
+					- $('#header').height()
+					- parseInt($('body').css('margin-top'))
+					- parseInt($('body').css('margin-bottom'));
+
+		let Np = URLWatcher['plots'].length;
+		let id;
+		for (let p = 0; p < Np;p++) {
+			id = URLWatcher['plots'][p]['id'];
+			let div = '<div id="' + id + '"></div>';
+			$('#plots').append(div);
+			document.getElementById(id).style.height = Math.floor(height/Np);
+		}
+
+		function zoomevent(eventdata) {
+
+			// Deal with limitation on Plotly's events. This blocks
+			// a relayout in this function from triggering another
+			// zoom event. The plotly_afterplot should be used for
+			// this, but it seems to be called before relayout is
+			// finished and so another zoom event can get triggered.
+			if (!zoomevent.last) {
+				zoomevent.last = URLWatcher['lastClickedTime'];
+			} else {
+				if (zoomevent.last == URLWatcher['lastClickedTime']) {
+					return;
+				} else {
+					zoomevent.last = URLWatcher['lastClickedTime'];					
+				}				
+			}
+			let zoomReset = eventdata['xaxis.autorange'] == true 
+							&& eventdata['yaxis.autorange'] == true
+
+			if (zoomReset) {
+				console.log('zoomevent(): Zoom reset event on ' + URLWatcher['lastClicked'] + " Event data:");
+			} else {
+				console.log('zoomevent(): Zoom event on ' + URLWatcher['lastClicked'] + " Event data:");
+			}
+			console.log(eventdata);
+
+			let Np = URLWatcher['plots'].length;
+			let id;
+			for (let p = 0; p < Np; p++) {
+				let eventdatac = JSON.parse(JSON.stringify(eventdata));
+
+				console.log("zoomevent(): Checking " + p)
+				id = URLWatcher['plots'][p]['id']
+				plot = document.getElementById(id);
+
+				// Needed b/c zoom event does not use yaxis.range that was set on initial plot.
+				if (URLWatcher['plots'][p]['paramID'] === 'fails') {						
+					// TODO: Range values for 'fails' appear in two places in code. 
+					eventdatac['yaxis.range[0]'] = -0.9;
+					eventdatac['yaxis.range[1]'] = 8;
+					eventdatac['yaxis.autorange'] = false;
+					console.log('zoomevent(): Setting yaxis.range on ' + URLWatcher['plots'][p]['paramID']);
+				}
+
+				if (id === URLWatcher['lastClicked'] && URLWatcher['plots'][p]['paramID'] !== 'fails') {
+					console.log('zoomevent(): No action being taken for ' + URLWatcher['plots'][p]['paramID']);
+				} else {
+					delete eventdatac['yaxis.range[0]'];
+					delete eventdatac['yaxis.range[1]'];
+					console.log('zoomevent(): Calling Plotly.relayout() on ' + id + ' using:');
+					console.log(eventdatac);
+					// Ideally would turn off zoom event here then re-enable it
+					// after relayout performed. Could not get this to work - kept
+					// getting recursive calls.
+					Plotly.relayout(id, eventdatac);
+				}
+			}
+		}
+
+		function clickevent(eventdata) {
+			console.log(eventdata);
+
+			d = new Date(eventdata['points'][0]['x']);
+			console.log(d);
+			if (URLWatcher['displayLocalTime']) {
+				off = d.getTimezoneOffset()*60000;
+				//d.setTime(d.getTime() + off);
+				console.log(d);
+			}
+			console.log(d.toISOString())
+			$('#testDataLink')
+				.attr('href',
+					'log/' + test + '/requests/' + d.toISOString().replace("Z", "") + '.json');
+			$('#testDataSpan').show();
+		}
+
+		let trace = {
+			type: "bar",
+			marker: {color: 'black', line: {color: 'black', width: 2, color: 'black'}}
+		}
+
+		let layout_base = {
+			font: {family: 'Times'},
+			hovermode:'closest',
+			connectgaps: false,
+			showlegend: true,			
+			legend: {"x": 0, "y": 1, bgcolor: 'rgba(255,255,255,0.5)'},
+			autosize: true,
+			hovermode: false,
+			xaxis: {
+				showticklabels: true,
+				showgrid: true,
+				linecolor: 'black',
+				mirror: true
+			},
+			yaxis: {
+				linecolor: 'black',
+				mirror: true
+			},
+			margin: {
+				l: 50,
+				r: 20,
+				b: 50,
+				t: 10,
+				pad: 0
+			},
+			paper_bgcolor: '#ffffff',
+			plot_bgcolor: '#ffffff'
+		}
+
+		options = {"displayModeBar": false};
+
+		let layout = [];
+		function doplots(p, rows) {
+
+			let id = URLWatcher['plots'][p]['id'];
+			let plot = document.getElementById(id);
+			let paramID = URLWatcher['plots'][p]['paramID'];
+
+			let plotMsg = "Plotly.d3.csv(): plot #" + p + " plotting started.";
+			timeit(plotMsg);
+
+			layout[p] = JSON.parse(JSON.stringify(layout_base));
+			layout[p].hovermode = true;
+
+			if (!trace.x) {
+				trace.x = unpack(rows, 'Date');
+			}
+
+			trace.y = unpack(rows, URLWatcher['plots'][p]['paramID']);
+			trace.name = URLWatcher['plots'][p]['paramName'];
+
+			trace.marker.line.width = 0;
+
+			if (paramID === 'fails') {
+				trace.marker.line.width = 2;
+				layout[p].yaxis.range = [-0.9, 8];
+				layout[p].yaxis.tickformat = ',d';
+			}
+
+			if (paramID === 'ttfb') {
+				trace.name = trace.name 
+							+ "; alert threshold = " 
+							+ URLWatcher['settings'][test]['tests']['firstByte']
+			}
+
+
+
+			Plotly
+				.newPlot(id, [trace], layout[p], options)
+				.then(function() {
+					$(plot).on('mousedown', () => {
+						console.log(id + ' mousedown');
+						// Plotly's plotly_relayout does not return the identity
+						// of the plot clicked. So this is stored using a top-level
+						// variable.
+						URLWatcher['lastClicked'] = id;
+						// Plotly's 
+						URLWatcher['lastClickedTime'] = new Date().getTime();
+					});
+					plot.on('plotly_relayout', zoomevent);
+					plot.on('plotly_click', clickevent);
+					timeit(plotMsg, plotMsg.replace("started", "took {}"));
+					p = p + 1;
+					if (p < URLWatcher['plots'].length) {		
+						// setTimout used so browser rendering of previous plot 
+						// happens before processing for next. At least in Chrome.
+						setTimeout(() => {doplots(p, rows);},0);
+					}
+				})
+		}
+
+		function unpack(rows, key) {
+
+			let unpackMsg = "Plotly.d3.csv.unpack(): " + key + " unpacking started.";
+			timeit(unpackMsg);
+			data = rows.map(function(row) {
+				if (key === "Date") {
+					if (URLWatcher['displayLocalTime']) {
+						d = new Date(row[key]);
+						off = d.getTimezoneOffset()*60000;
+						d.setTime(d.getTime() - off);
+						return d.toISOString().replace(/T/,' ').replace(/Z/,'');
+					} else {
+						return row[key].replace(/T/,' ').replace(/Z/,'');
+					}
+				} else {
+					return row[key];
+				}
+			})
+			timeit(unpackMsg, unpackMsg.replace("started","took {}"));
+			return data
+		}
+
+		let logFileReadMsg = 'Plotly.d3.csv(): ' + logFile + ' read start.';
+		timeit(logFileReadMsg);
+		Plotly.d3.csv(logFile, function (err, rows) {
+
+			timeit(logFileReadMsg, 
+				'Plotly.d3.csv(): ' + logFile + ' read in {}; # rows = ' + rows.length);
+
+			doplots(0, rows);
+
+		})
+	}
+
+</script>
+
+</body>
+</html>

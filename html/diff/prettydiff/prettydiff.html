@@ -1,0 +1,132 @@
+<!doctype html><html>
+<head>
+    <title>Pretty Diff - Third Party Browser Documentation</title>
+    <meta content="text/html;charset=UTF-8" http-equiv="Content-Type"/>
+    <link href="index.css" media="all" rel="stylesheet" type="text/css"/>
+    <script src="browser.js"></script>
+    <script src="../js/jquery-3.4.1.min.js"></script>
+    <style>
+    .diff-left {width: 50%;float:left;overflow:scroll}
+    .diff-right {width: 50%;float:left;overflow:scroll}
+    #prettydiff {text-align: left;overflow-y:none;}
+    </style>
+    <script>
+    let prettydiff = window.prettydiff;
+    prettydiff.options.source = "<span>a=1</span>\n<span>a=1</span>";
+    prettydiff.options.diff   = "<span>b=1</span>\n<span>b=1</span>";
+    prettydiff.options.diff_view = "sidebyside";    
+    prettydiff.options.language = "html";
+    prettydiff.options.diff_format = "html";
+    prettydiff.options.diff_context = -1;
+    prettydiff.options.method_chains = 3;
+    prettydiff.options.wrap = 80;
+
+    //prettydiff.options.diff_rendered_html = true;
+    //prettydiff.options.parse_format = "table";
+
+    var fromjson = false;
+    // AJAX JSON fetch
+    function getJSON(file, cb) {
+        console.log("getJSON(): Getting " + file);
+        let req = new XMLHttpRequest();
+        req.onreadystatechange = function() {
+            if (req.readyState === 4) {
+                if (req.status === 200) {
+                    if (fromjson) {
+                        var data = JSON.parse(req.responseText);
+                    } else {
+                        var data = req.responseText;
+                    }
+                    if (cb) {
+                        console.log("getJSON(): Got " + file);
+                        cb(data);
+                    }
+                }
+            }
+        };
+        req.open('GET', file);
+        req.send(); 
+    }
+
+    function main() {
+        myResult = prettydiff();
+        function done(data) {
+            if (!done.data) {
+                done.data = [data];
+            } else {
+                done.data.push(data)
+            }
+            if (done.data.length == 2) {
+                console.log(done.data)
+                if (fromjson) {
+                    console.log(done.data[0].body);
+                    console.log(done.data[1].body);
+                    prettydiff.options.source = done.data[0].body;
+                    prettydiff.options.diff   = done.data[1].body;
+                } else {
+                    prettydiff.options.source = done.data[0];
+                    prettydiff.options.diff   = done.data[1];
+                }
+                document.getElementById('output').innerHTML = prettydiff();
+                //$('.fold').click(fold);
+                // TODO: Need to put line numbers as attributes in all <li> elements
+                // When hide is performed, replace list of line numbers with line numbers
+                // for elements with class .replace
+                //$('.equal').hide();
+            }
+        }
+        if (fromjson) {
+            getJSON('../../log/Autoplot/requests/2019-07-10T23:27:37.480.json', done);
+            getJSON('../../log/Autoplot/requests/2019-07-10T23:24:36.539.json', done);
+        } else {
+            getJSON('./a.htm', done);
+            getJSON('./b.htm', done);
+        }
+        //console.log('here');
+        //document.getEleme
+    }
+
+    // Function from: https://prettydiff.com/js/webtool.js?1561458184488
+    //allows visual folding of function in the JSPretty jsscope HTML output
+    function fold(event) {
+        let a = 0, b = "";
+        const el = event.srcElement || event.target, title = el
+            .getAttribute("title")
+            .split("line "), parent = [el.parentNode, el.parentNode.nextSibling], min = Number(title[1].substr(0, title[1].indexOf(" "))), max = Number(title[2]), list = [
+            parent[0].getElementsByTagName("li"),
+            parent[1].getElementsByTagName("li")
+        ];
+        a = min;
+        if (el.innerHTML.charAt(0) === "-") {
+            do {
+                list[0][a].style.display = "none";
+                list[1][a].style.display = "none";
+                a = a + 1;
+            } while (a < max);
+            el.innerHTML = `+${el
+                .innerHTML
+                .substr(1)}`;
+        }
+        else {
+            do {
+                list[0][a].style.display = "block";
+                list[1][a].style.display = "block";
+                if (list[0][a].getAttribute("class") === "fold" && list[0][a].innerHTML.charAt(0) === "+") {
+                    b = list[0][a].getAttribute("title");
+                    b = b.substring(b.indexOf("to line ") + 1);
+                    a = Number(b) - 1;
+                }
+                a = a + 1;
+            } while (a < max);
+            el.innerHTML = `-${el
+                .innerHTML
+                .substr(1)}`;
+        }
+    };
+
+    </script>
+</head>
+<body class="white" id="prettydiff" onload="main()">
+    <div id="output"></div>
+</body>
+</html>
