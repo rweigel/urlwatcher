@@ -484,7 +484,7 @@ function test(testName, work) {
 		let subject = "❌: URLWatcher " 
 						+ testName 
 						+ " on " 
-						+ app.config.hostname 
+						+ config.app.hostname 
 						+ ": " + work.errorMessage;
 		if (L == 1) {
 			email(urlTests[testName].email, subject);
