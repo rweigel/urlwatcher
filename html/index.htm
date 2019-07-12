@@ -3,20 +3,21 @@
 	<script src="html/js/purl.js"></script>
 	<script src="html/js/jquery-3.4.1.min.js"></script>
 	<link href="html/favicon.ico" rel="icon" type="image/x-icon" />
-	<style>
-		html * {
-			font-family: Times;
-			font-size: 16;
-		}
-		a:link {
-			color: black;
-		}
-		a:visited {
-			color: black;
-		}
-</style>	
+	<link href="html/index.css" rel="stylesheet" type="text/css" />
 </head>
 <body>
+	<span id="help">?</span>
+	<div id="info">
+		<ul>
+			<li>Zoom an area - Draw diagonal line on plot</li>
+			<li>Zoom horizontal - Draw horizontal line on plot</li>
+			<li>Zoom vertical - Draw vertical line on plot</li>
+			<li>Zoom reset - Very rapid double click on plot</li>
+			<li>Pan horizontal - Draw horizontal line on x-axis labels</li>
+			<li>Pan vertical - Draw vertical line on y-axis labels</li>
+			<li>For additional interaction options, see <a href="https://help.plot.ly/zoom-pan-hover-controls/" target="_blank">the Plotly controls tutorial</a>
+		</ul>
+	</div>
 
 	<div id="header" style="text-align:center">
 		<select id="testDropdown" style="display:none;"></select>
@@ -58,6 +59,11 @@
 				]
 		}
 
+	$(document).ready(function(){
+		$("#help").click(function () {$("#info").show()});
+		$("#info").hover(() => {}, function () {$(this).hide()});
+	});
+	
 	// Main app initialization and update function
 	$(window).on('hashchange', hashchange)
 
@@ -279,8 +285,8 @@
 		// See also https://stackoverflow.com/a/8794370/1491619
 		var w = Math.max(document.documentElement.clientWidth, window.innerWidth || 0);
 		var h = Math.min(document.documentElement.clientHeight, window.innerHeight || 0);
-		w = window.innerWidth;
-		h = window.innerHeight;
+		w = window.innerWidth - $.scrollbarWidth() - 1;
+		h = window.innerHeight - $.scrollbarWidth() - 1;
 		return {width: w, height: h}
 	}
 
@@ -310,6 +316,9 @@
 			}
 		}		
 	}
+
+	// TODO: Reference where this came from.
+	$.scrollbarWidth=function(){var a,b,c;if(c===undefined){a=$('<div style="width:50px;height:50px;overflow:auto"><div/></div>').appendTo('body');b=a.children();c=b.innerWidth()-b.height(99).innerWidth();a.remove()}return c};
 
 	// AJAX JSON fetch
 	function getJSON(file, cb) {
@@ -521,21 +530,32 @@
 
 		}
 
+		// Disable double click
+		// https://codepen.io/etpinard/pen/XNXKaM
+		// https://codepen.io/plotly/pen/PqgLmv
 		function clickevent(eventdata) {
+			console.log('clickevent(): Click event. Data:');
 			console.log(eventdata);
 
-			d = new Date(eventdata['points'][0]['x']);
-			console.log(d);
+			d = new Date(eventdata['points'][0]['x'].replace(" ","T"));
+			//console.log('clickevent(): First time value:');
+			//console.log(d)
 			if (URLWatcher['displayLocalTime']) {
 				off = d.getTimezoneOffset()*60000;
-				//d.setTime(d.getTime() + off);
-				console.log(d);
+				console.log('clickevent(): Timezone offset = ' + off);
 			}
-			console.log(d.toISOString())
+			
+			console.log('clickevent(): Updating link to JSON test file');			
 			$('#testDataLink')
+				.css('background-color', 'yellow')
 				.attr('href',
-					'log/' + test + '/requests/' + d.toISOString().replace("Z", "") + '.json');
-			$('#testDataSpan').show();
+						'log/' + test + '/requests/' 
+						+ d.toISOString().replace("Z", "") + '.json');
+			$('#testDataSpan').show()
+
+			// Remove background color after 1000 ms.
+			setTimeout(() => {
+				$('#testDataLink').css('background-color','')}, 1000);
 		}
 
 		let trace = {
@@ -571,7 +591,7 @@
 			legend: {
 				"x": 0,
 				"y": 1,
-				bgcolor: 'rgba(255,255,255,0.5)',
+				bgcolor: 'rgba(255,255,255,0.9)',
 				"orientation": "h"
 			},
 			autosize: true,
@@ -674,6 +694,7 @@
 
 			let unpackMsg = "Plotly.d3.csv.unpack(): " + key + " unpacking started.";
 			timeit(unpackMsg);
+
 			let data = [[],[],[]];
 			for (let r = 0; r < rows.length; r++) {
 				if (URLWatcher['displayLocalTime']) {
