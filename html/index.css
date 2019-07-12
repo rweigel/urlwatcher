@@ -1,0 +1,53 @@
+html * {
+    font-family: Times;
+    font-size: 16;
+}
+/* Ignored in some browsers https://css-tricks.com/dropdown-default-styling/ */
+option {
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    border: 0;
+    appearance: none;
+    font-family: Times;
+    font-size: 16;    
+}
+
+a:link {
+    color: black;
+}
+a:visited {
+    color: black;
+}
+
+div.plotly-notifier {
+    visibility: hidden;
+}
+
+#help {
+    width:1em;
+    height:1em;
+    position: absolute;
+    top: 4px;
+    left: 8px;
+    right: 8px;
+    bottom: 4px;
+    cursor: pointer;
+}
+
+#info {
+    position: fixed;
+    display: none;
+    top: 8px;
+    left: 8px;
+    right: 8px;
+    bottom: 0;
+    height: 11em;
+    width: 25em;
+    padding-left: -1em;
+    padding-right: 2em;
+    padding-bottom: 0em;
+    overflow: scroll;
+    border: 1px solid black;
+    background-color: white;
+    z-index: 9999;
+}
