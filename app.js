@@ -65,11 +65,13 @@ if (config.app.emailStatus) {
 									+ config.app.emailStatusTo);	
 	let html = prettyHtml(urlTests);
 	email(config.app.emailStatusTo, 
-			"URLWatcher started on " 
-			+ config.app.hostname 
-			+ " at "
-			+ (new Date()).toISOString()
-			, "Configuration:<br/>" + html);	
+				"URLWatcher started on " 
+				+ config.app.hostname 
+				+ " at "
+				+ (new Date()).toISOString()
+			,
+				"View results at " + config.app.publicHTML,
+				+ "<br/>Configuration:<br/>" + html);
 } else {
 	console.log("main(): Not sending application start/stop messages"
 				+ " b/c config.app.emailStatus = false.");
@@ -481,16 +483,18 @@ function test(testName, work) {
 	let L = results.length;
 
 	if (results[L-1].error) {
-		let subject = "❌: URLWatcher " 
+		work.emailSubject = 
+						"❌: URLWatcher " 
 						+ testName 
 						+ " on " 
 						+ config.app.hostname 
-						+ ": " + work.errorMessage;
+						+ ": "
+						+ work.errorMessage;
 		if (L == 1) {
-			email(urlTests[testName].email, subject);
+			email(work);
 		} else {
 			if (!results[L-2].error) {
-				email(urlTests[testName].email, subject);
+				email(work);
 			}
 		}
 		report(testName, work);
@@ -500,7 +504,7 @@ function test(testName, work) {
 	urlTests[testName].results[L-1].testError = true;
 
 	work.testFailures = [];
-	work.emailText = [];
+	work.emailBody = [];
 	let fails = 0;
 	for (let checkName in urlTests[testName].tests) {
 
@@ -512,12 +516,12 @@ function test(testName, work) {
 			if (results[L-1][checkName] != urlTests[testName].tests[checkName]) {
 				fails++;
 				work.testFailures.push(checkName);
-				work.emailText.push("❌: Status code of " 
+				work.emailBody.push("❌: Status code of " 
 							+ results[L-1][checkName] 
 							+ " is not equal to " 
 							+ urlTests[testName].tests[checkName]);
 			} else {
-				work.emailText.push("✅: Status code of " 
+				work.emailBody.push("✅: Status code of " 
 							+ results[L-1][checkName] 
 							+ " is equal to " 
 							+ urlTests[testName].tests[checkName]);				
@@ -532,12 +536,12 @@ function test(testName, work) {
 				if (results[L-1].bodyLength != results[L-2].bodyLength) {
 					fails++;
 					work.testFailures.push(checkName);
-					work.emailText.push("❌: Current length of " 
+					work.emailBody.push("❌: Current length of " 
 								+ results[L-2].bodyLength 
 								+ " differs from that for last test (" 
 								+ results[L-1].bodyLength + ")");
 				} else {
-					work.emailText.push("✅: Current length of " 
+					work.emailBody.push("✅: Current length of " 
 								+ results[L-2].bodyLength 
 								+ " is same as that for last test");
 				}
@@ -550,9 +554,9 @@ function test(testName, work) {
 				if (results[L-1].bodyMD5 != results[L-2].bodyMD5) {
 					fails++;
 					work.testFailures.push(checkName);
-					work.emailText.push("❌: Current MD5 differs from that for last test");
+					work.emailBody.push("❌: Current MD5 differs from that for last test");
 				} else {
-					work.emailText.push("✅: Current MD5 is same as that for last test");					
+					work.emailBody.push("✅: Current MD5 is same as that for last test");					
 				}
 			}
 		}
@@ -562,13 +566,13 @@ function test(testName, work) {
 			if (!re.exec(results[L-1].body)) {
 				fails++;
 				work.testFailures.push(checkName);
-				work.emailText.push("❌: Body does not match regular expression '" 
+				work.emailBody.push("❌: Body does not match regular expression '" 
 							+ urlTests[testName].tests[checkName][0] 
 							+ "' with options '" 
 							+ urlTests[testName].tests[checkName][1] 
 							+ "'");
 			} else {
-				work.emailText.push("✅: Body matches regular expression '" 
+				work.emailBody.push("✅: Body matches regular expression '" 
 							+ urlTests[testName].tests[checkName][0] 
 							+ "' with options '" 
 							+ urlTests[testName].tests[checkName][1] 
@@ -581,12 +585,12 @@ function test(testName, work) {
 			if (results[L-1]["timingPhases"][checkName] > urlTests[testName].tests[checkName]) {
 				fails++;
 				work.testFailures.push(checkName);
-				work.emailText.push("❌: Time to first chunk of " 
+				work.emailBody.push("❌: Time to first chunk of " 
 							+ round(results[L-1]["timingPhases"][checkName]) 
 							+ " > " + urlTests[testName].tests[checkName] 
 							+ " ms");
 			} else {
-				work.emailText.push("✅: Time to first chunk of " 
+				work.emailBody.push("✅: Time to first chunk of " 
 							+ round(results[L-1]["timingPhases"][checkName]) 
 							+ " <= " + urlTests[testName].tests[checkName] 
 							+ " ms");				
@@ -596,12 +600,12 @@ function test(testName, work) {
 			if (results[L-1]["timingPhases"][checkName] > urlTests[testName].tests[checkName]) {
 				fails++;
 				work.testFailures.push(checkName);
-				work.emailText.push("❌: Request transfer time of " 
+				work.emailBody.push("❌: Request transfer time of " 
 							+ round(results[L-1]["timingPhases"][checkName]) 
 							+ " > " + urlTests[testName].tests[checkName] 
 							+ " ms");
 			} else {
-				work.emailText.push("✅: Request transfer time of " 
+				work.emailBody.push("✅: Request transfer time of " 
 							+ round(results[L-1]["timingPhases"][checkName])
 							+ " <= " + urlTests[testName].tests[checkName]
 							+ " ms");				
@@ -611,12 +615,12 @@ function test(testName, work) {
 			if (results[L-1]["timingPhases"][checkName] > urlTests[testName].tests[checkName]) {
 				fails++;
 				work.testFailures.push(checkName);
-				work.emailText.push("❌: Request time of " 
+				work.emailBody.push("❌: Request time of " 
 							+ round(results[L-1]["timingPhases"][checkName])
 							+ " > " + urlTests[testName].tests[checkName]
 							+ " ms");
 			} else {
-				work.emailText.push("✅: Request time of "
+				work.emailBody.push("✅: Request time of "
 							+ round(results[L-1]["timingPhases"][checkName])
 							+ " <= " + urlTests[testName].tests[checkName]
 							+ " ms");				
@@ -627,19 +631,29 @@ function test(testName, work) {
 
 	// Prepare email
 
-	let requestDate = work.requestStartTime.toISOString().replace(/T.*/,'').replace(/-/g,'');
+	let requestDate = work.requestStartTime
+						.toISOString()
+						.replace(/T.*/,'')
+						.replace(/-/g,'');
+
 	let d = new Date(work.requestStartTime);
-	let requestDateLast = (new Date(d.setDate(d.getDate()-1))).toISOString().replace(/T.*/,'').replace(/-/g,'');
-	let text = "Test URL\n  " + urlTests[testName].url + "\n\n" + work.emailText.join("\n");
-		text = text 
-					+ "\n\nTest configuration\n  " 
-					+ config.app.publicHTML + "log/" 
-					+ testName + "/settings.json";
+	let requestDateLast = (new Date(d.setDate(d.getDate()-1)))
+							.toISOString()
+							.replace(/T.*/,'')
+							.replace(/-/g,'');
+
+	let text = "Test URL\n  "
+				+ urlTests[testName].url 
+				+ "\n\n" 
+				+ work.emailBody.join("\n")
+				+ "\n\nTest configuration\n  " 
+				+ config.app.publicHTML + "log/" 
+				+ testName + "/settings.json";
 
 	let text2 = "\n\nSummary file:\n  " 
 					+ config.app.publicHTML 
-					+ results[L-1].entryFile.replace(__dirname + "/", "");
-		text2 = text2 + "\n\nLast summary plot:\n  " 
+					+ results[L-1].entryFile.replace(__dirname + "/", "")
+					+ "\n\nLast summary plot:\n  " 
 					+ config.app.publicHTML 
 					+ "#" 
 					+ testName 
@@ -701,47 +715,51 @@ function test(testName, work) {
 
 	work.emailSent = false;
 
-	let to, body, subject;
 	if (sendFailEmail || sendPassEmail) {
-		to = urlTests[testName]['emailAlertsTo'];
-		body = text + text2;		
+		work.emailTo = urlTests[testName]['emailAlertsTo'];
+		work.emailBody = text + text2;
+	
 	}
+
+
+	// Create a short id to put in subject line to prevent email clients
+	// from threading messages.
+	work.requestID = crypto.createHash("md5")
+						.update(work.requestStartTime.toISOString())
+						.digest("hex")
+						.substring(0,4)
 
 	if (sendFailEmail) {
-		subject = "❌ " + testName + " URLWatcher: " + "Test Failure" + s;
-		email(to, subject, body);
-		work.emailSent = true;
+		work.emailSubject = "❌ "
+							+ testName 
+							+ " URLWatcher: "
+							+ "Test Failure" + s
+							+ " on " 
+							+ config.app.hostname
+							+ " " 
+							+ id
+		email(work);
 	}
+
 	if (sendPassEmail) {
-		subject = "✅ " + testName + " URLWatcher: All Tests Passed" + s;
-		email(to, subject, body);
-		work.emailSent = true;
+		work.emailSubject = "✅ " 
+							+ testName 
+							+ " URLWatcher: All Tests Passed"
+							+ " on "
+							+ config.app.hostname
+							+ " " 
+							+ id
+		email(work);
 	}
-
-	// TODO: Handle email send failure.
-	if (work.emailSent) {
-		let email = "To: " + maskEmailAddress(to) + "\n"
-					+ "Subject: " + subject + "\n"
-					+ "Body:\n"
-					+ "  " + body.replace(/\n/g,'\n  ');
-
-		if (!fs.existsSync(work.emailDirectory)) {
-			mkdirp.sync(work.emailDirectory);
-		}
-		fs.writeFileSync(work.emailFile, email);
-
-		console.log("------------------------------------------------------------------");
-		console.log(email);
-		console.log("------------------------------------------------------------------");		
-	}
-
-	work.emailText = text + text2;
 
 	report(testName, work);
 }
 
 function maskEmailAddress(addr) {
-	if (!addr) return "";
+
+	if (!addr || !/@/.test(addr)) {
+		return ""
+	};
 
 	// username@host => us...@host
 	let tmp = addr.split('@');
@@ -752,15 +770,42 @@ function maskEmailAddress(addr) {
 
 function email(to, subject, text, cb) {
 
+	if (typeof(to) === "object") {
+		// Only writes emails sent about tests, not start/stop messages.
+		// TODO: Write system messages.
+		// TODO: Handle email send failure.
+		work = to;
+		cb = subject;
+		to = work.emailTo;
+		subject = work.emailSubject;
+		text = work.emailBody || work.emailSubject;
+		let email = "To: " + maskEmailAddress(to) + "\n"
+					+ "Subject: " + subject + "\n"
+					+ "Body:\n"
+					+ "  " + text.replace(/\n/g,'\n  ');
+
+		if (!fs.existsSync(work.emailDirectory)) {
+			mkdirp.sync(work.emailDirectory);
+		}
+		console.log('email(): Writing ' + work.emailFile.replace(__dirname + "/",""));	
+		fs.writeFileSync(work.emailFile, email);
+
+		console.log('email(): Email to be sent:')
+		console.log("------------------------------------------------------------------");
+		console.log(email);
+		console.log("------------------------------------------------------------------");		
+	}
+
+	if (!text) {
+		text = subject;
+	}
+
 	if (!config.app.emailMethod) {
+		console.log('email(): config.app.emailMethod not specified. Not sending email.')
 		if (cb) {
 			cb();
 		}
 		return;
-	}
-
-	if (arguments.length < 3) {
-		text = subject;
 	}
 
 	text = text.replace(/\n/g, "<br/>").replace(/ /g, "&nbsp;")
