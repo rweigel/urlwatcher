@@ -1,7 +1,14 @@
+/* Hide the Plotly pop-up information divs
+   (e.g, Double click to reset zoom) */
+div.plotly-notifier {
+    visibility: hidden;
+}
+
 html * {
     font-family: Times;
     font-size: 16;
 }
+
 /* Ignored in some browsers https://css-tricks.com/dropdown-default-styling/ */
 option {
     -webkit-appearance: none;
@@ -19,8 +26,12 @@ a:visited {
     color: black;
 }
 
-div.plotly-notifier {
-    visibility: hidden;
+#header {
+    text-align: center;
+}
+
+#testDropdown, #displayDropdown, #logDirectory, #testSettings, #testDataSpan {
+    display: none;
 }
 
 #help {

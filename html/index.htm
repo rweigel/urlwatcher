@@ -1,10 +1,11 @@
 <head>
+	<link href="html/favicon.ico" rel="icon" type="image/x-icon" />
+	<link href="html/index.css" rel="stylesheet" type="text/css" />
 	<script src="html/js/plotly-1.48.2.min.js"></script>
 	<script src="html/js/purl.js"></script>
 	<script src="html/js/jquery-3.4.1.min.js"></script>	
 	<script src="html/index.js"></script>
-	<link href="html/favicon.ico" rel="icon" type="image/x-icon" />
-	<link href="html/index.css" rel="stylesheet" type="text/css" />
+	<script src="html/plot.js"></script>
 </head>
 <body>
 	<span id="help">
@@ -23,16 +24,16 @@
 		</ul>
 	</div>
 
-	<div id="header" style="text-align:center">
-		<select id="testDropdown" style="display:none;"></select>
-		<select id="dateDropdown" style="display:none;"></select>
+	<div id="header">
+		<select id="testDropdown"></select>
+		<select id="dateDropdown"></select>
 		&nbsp;|&nbsp;
 		<span id="links">
-			<a id="logDirectory" target="_blank" style="display:none;">Log directory</a>
+			<a id="logDirectory" target="_blank">Log directory</a>
 			&nbsp;|&nbsp;
-			<a id="testSettings" target="_blank" style="display:none;">Test settings</a>
+			<a id="testSettings" target="_blank">Test settings</a>
 		</span>
-		<span id="testDataSpan" style="display:none;">
+		<span id="testDataSpan"">
 			&nbsp;|&nbsp;	
 			<a id="testDataLink" target="_blank">Test file</a>
 		</span>

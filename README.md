@@ -48,7 +48,7 @@ npm test
 
 # TODO:
 
-2. Try using HighCharts instead of Plotly. Plotly wraps for d3.js and it omits many important parts (see comments in code). Plotly/d3.js uses SVG and much effort would be needed to improve speed. HighCharts uses HTML Canvas and has many speed optimizations, better documentation, more options, is free for academic use, and robust development group.
+2. Try using HighCharts instead of Plotly. Plotly wraps for d3.js and it omits many important parts (see comments in code). Plotly/d3.js uses SVG and much effort would be needed to improve speed. HighCharts uses HTML Canvas and has many speed optimizations, better documentation, more options, is free for academic use, and robust development group. Others that use canvas are Flot, CanvasJS, RGraph, http://smoothiecharts.org/. Also consider https://mango-is.com/blog/engineering/pre-render-d3-js-charts-at-server-side/ and https://community.plot.ly/t/how-to-perform-server-side-manipulation-using-plotly-js/1077/6.
 3. For test, set threshold for download, total, and firstByte to value near their averages.
 4. Instructions on testing email client.
 5. Show alert threshold for ttfb, etc., on plots
