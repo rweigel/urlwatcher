@@ -21,37 +21,37 @@ let URLWatcher =
 	}
 
 	let trace_base = {
-		type: "bar",
-		marker: {
-			color: 'black', 
-			line: {
+		good: {
+			type: "bar",
+			marker: {
 				color: 'black', 
-				width: 2, 
-				color: 'black'
+				line: {
+					color: 'black', 
+					width: 2, 
+					color: 'black'
+				}
 			}
-		}
-	}
-
-	let trace_bad_base= {
-		type: "bar",
-		marker: {
-			color: 'red', 
-			line: {
+		},
+		bad: {
+			type: "bar",
+			marker: {
 				color: 'red', 
-				width: 2, 
-				color: 'red'
+				line: {
+					color: 'red', 
+					width: 2, 
+					color: 'red'
+				}
 			}
-		}
-	}
-
-	let trace_nosample_base = {
-		type: "bar",
-		marker: {
-			color: 'blue', 
-			line: {
+		},
+		nosample: {
+			type: "bar",
+			marker: {
 				color: 'blue', 
-				width: 2, 
-				color: 'blue'
+				line: {
+					color: 'blue', 
+					width: 2, 
+					color: 'blue'
+				}
 			}
 		}
 	}
@@ -59,7 +59,7 @@ let URLWatcher =
 	let layout_base = {
 		font: {family: 'Times', size: 16},
 		hovermode:'closest',
-		showlegend: true,	
+		showlegend: true,
 		hoverlabel: {namelength: 100},
 		legend: {
 			"x": 0,
@@ -70,6 +70,10 @@ let URLWatcher =
 		autosize: true,
 		hovermode: true,
 		xaxis: {
+			// To use tickformat, also need to set format for tick stops for different zoom levels
+			// https://plot.ly/python/tick-formatting/#tickformatstops-to-customize-for-different-zoom-levels
+			// See https://github.com/plotly/plotly.js/blob/master/src/plots/cartesian/axes.js#L1051
+			//'tickformat': '%H:%M:%S\n%Y-%m-%d',
 			showline: true, // bottom line
 			visible: true,
 			showticklabels: true,
@@ -595,70 +599,61 @@ $(document).ready(function(){
 
 		let layouts = [];
 		let traces = [];
-		let trace = [];
-		let trace_bad = [];
-		let trace_nosample = [];
+		let trace = {'good': [], 'bad': [], 'nosample': []};
 		function doplots(p, rows) {
+
+			let plotMsg = "doplots(): plot #" + p + " plotting started.";
+			timeit(plotMsg);
 
 			let id = URLWatcher['plots'][p]['id'];
 			let plot = document.getElementById(id);
 			let paramID = URLWatcher['plots'][p]['paramID'];
 
-			let plotMsg = "Plotly.d3.csv(): plot #" + p + " plotting started.";
-			timeit(plotMsg);
-
-			layouts[p] = JSON.parse(JSON.stringify(layout_base));
-			trace[p] = JSON.parse(JSON.stringify(trace_base));
-			trace_bad[p] = JSON.parse(JSON.stringify(trace_bad_base));
-			trace_nosample[p] = JSON.parse(JSON.stringify(trace_nosample_base));
+			layouts[p]           = JSON.parse(JSON.stringify(layout_base));
+			trace['good'][p]     = JSON.parse(JSON.stringify(trace_base['good']));
+			trace['bad'][p]      = JSON.parse(JSON.stringify(trace_base['bad']));
+			trace['nosample'][p] = JSON.parse(JSON.stringify(trace_base['nosample']));
 
 			let data = unpack(rows, URLWatcher['plots'][p]['paramID']);
 			
-			trace[p].x = data[0];
-			trace[p].y = data[1];
+			trace['good'][p].x = data['date'];
+			trace['good'][p].y = data['good'];
 
+			trace['bad'][p].x = data['date'];
+			trace['bad'][p].y = data['bad'];
+			
+			trace['nosample'][p].x = data['date'];
+			trace['nosample'][p].y = data['nosample'];
+
+			traces[p] = [trace['good'][p], trace['bad'][p], trace['nosample'][p]];
+
+			let condition, condition_bad;
 			if (paramID === 'fails') {
 
 				layouts[p].yaxis.range = [-0.1, 8.1];
 				layouts[p].yaxis.tickformat = ',d';
-					layouts[p].yaxis.tickmode = 'array',
+				layouts[p].yaxis.tickmode = 'array',
 	    		layouts[p].yaxis.tickvals = [0, 1, 2, 3, 4, 5, 6, 7];
 
-				trace[p].name = URLWatcher['plots'][p]['paramName'] 
-								+ " = 0";
-
-				trace_bad[p].x = data[0];
-				trace_bad[p].y = data[2];
-				trace_bad[p].name = URLWatcher['plots'][p]['paramName']
-									+ " ≠ 0";				
-
-				trace_nosample[p].x = data[0];
-				trace_nosample[p].y = data[3];
-				trace_nosample[p].name = "No sample; connection error";
-
-				traces[p] = [trace[p], trace_bad[p], trace_nosample[p]];
+	    		condition = " = 0";
+	    		condition_bad = " ≠ 0";
 			}
 
 			if (paramID === 'ttfb') {
-
-				trace[p].name = URLWatcher['plots'][p]['paramName'] 
-								+ " ≤ " 
-								+ URLWatcher['settings'][test]['tests']['firstByte'];
-
-				trace_bad[p].x = data[0];
-				trace_bad[p].y = data[2];
-				
-				trace_bad[p].name = trace[p].name;
-				trace_bad[p].name = URLWatcher['plots'][p]['paramName'] 
-									+ " > " 
-									+ URLWatcher['settings'][test]['tests']['firstByte'];
-
-				trace_nosample[p].x = data[0];
-				trace_nosample[p].y = data[3];
-				trace_nosample[p].name = "No sample; connection error";
-
-				traces[p] = [trace[p], trace_bad[p], trace_nosample[p]];
+				condition = " ≤ "; 
+				condition_bad = " > ";
 			}
+
+			trace['good'][p].name = URLWatcher['plots'][p]['paramName'] 
+									+ condition
+									+ " (N = " + data['Ngood'] + ")";
+
+			trace['bad'][p].name = URLWatcher['plots'][p]['paramName']
+									+ condition_bad
+									+ " (N = " + data['Nbad'] + ")";
+
+			trace['nosample'][p].name = "No sample; connection error "
+										 + " (N = " + data['Nnosample'] + ")";
 
 			Plotly
 				.newPlot(id, traces[p], layouts[p], options)
@@ -690,6 +685,9 @@ $(document).ready(function(){
 			let unpackMsg = "Plotly.d3.csv.unpack(): " + key + " unpacking started.";
 			timeit(unpackMsg);
 			let data = [[],[],[],[]];
+			let Ngood = 0;
+			let Nbad = 0;
+			let Nnosample = 0;
 			for (let r = 0; r < rows.length; r++) {
 				if (URLWatcher['displayLocalTime']) {
 					d = new Date(rows[r]['Date']);
@@ -706,17 +704,21 @@ $(document).ready(function(){
 					let threshold = URLWatcher['settings'][test]['tests']['firstByte'];
 					if (rows[r][key] > threshold) {
 						bad = rows[r][key];
+						Nbad = Nbad + 1;
 					}
 					if (rows[r]['fails'] == -1) {
 						nosample = -threshold/10;
+						Nnosample = Nnosample + 1;
 					}
 				}
 				if (key === 'fails') {
 					if (rows[r][key] > 0) {
 						bad = rows[r][key];
+						Nbad = Nbad + 1;
 					}
 					if (rows[r][key] == -1) {
 						nosample = -0.1;
+						Nnosample = Nnosample + 1;
 					}
 					if (rows[r][key] == 0) {
 						good = 0.01; // To make more visible
@@ -724,6 +726,8 @@ $(document).ready(function(){
 				}
 				if (!isNaN(bad) || !isNaN(nosample)) {
 					good = NaN;
+				} else {
+					Ngood = Ngood + 1;
 				}
 				data[0].push(datestr);
 				data[1].push(good);
@@ -732,7 +736,15 @@ $(document).ready(function(){
 			}
 			timeit(unpackMsg, unpackMsg.replace("started","took {}"));
 			//console.log(data);
-			return data
+			return {
+						'date': data[0],
+						'good': data[1],
+						'bad': data[2],
+						'nosample': data[3],
+						'Ngood': Ngood,
+						'Nbad': Nbad,
+						'Nnosample': Nnosample
+			 		};
 		}
 
 		let logFileReadMsg = 'Plotly.d3.csv(): ' + logFile + ' read start.';
@@ -752,4 +764,4 @@ $(document).ready(function(){
 			console.log("getTests(): Test list loaded. Triggering hashchange.");
 			$(window).trigger('hashchange');
 	})
-})
+});
