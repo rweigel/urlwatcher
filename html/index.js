@@ -9,17 +9,20 @@ let URLWatcher =
 				{
 					'id': 'plot0',
 					'paramID': 'fails',
-					'paramName': '# of test failures'
+					'paramName': '# of test failures',
+					'paramUnits': ''
 				},
 				{
 					'id': 'plot1',
 					'paramID': 'ttfb',
-					'paramName': 'Time to First Byte [ms]'
+					'paramName': 'Time to First Byte',
+					'paramUnits': 'ms'
 				}
 			],
 		'plotly': {
 			options: {
-				"displayModeBar": false
+				"displayModeBar": false,
+    			"doubleClick": 'reset' // false, 'reset', 'autosize', or 'reset+autosize'
 			},
 			trace: {
 				good: {
@@ -215,6 +218,9 @@ function hashchange(evt) {
 						+' Setting to first test in list.');
 		test = tests[0];
 	}
+
+	console.log('hashchange(): Clearing plots.');
+	$('#plots').html('');
 
 	hashchange.selfTrigger = true;
 	setHashValue('test', test);

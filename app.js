@@ -865,7 +865,6 @@ function email(to, subject, text, cb) {
 			}
 		});
 	}
-
 }
 
 function shutdown() {

@@ -2,7 +2,7 @@
 
 function plot(logFile, test, cb) {
 
-	function setCanvasWH() {
+	plot.setCanvasWH = function() {
 		let vp = viewportWH();
 		console.log('setCanvasWH(): Called. Viewport width and height:');
 		console.log(vp);
@@ -29,7 +29,7 @@ function plot(logFile, test, cb) {
 		}		
 	}
 
-	setCanvasWH();
+	plot.setCanvasWH();
 
 	function legendclickevent(eventdata) {
 		//console.log(eventdata);
@@ -38,13 +38,17 @@ function plot(logFile, test, cb) {
 
 	function relayoutevent(eventdata) {
 
-		console.log("relayoutevent(): Called with data:");
+		let id = URLWatcher['lastClicked'];
+
+		console.log("relayoutevent(): Relayout event due to interaction on "
+					+ id + ". Event data:");
 		console.log(eventdata);
 
-		let id = URLWatcher['lastClicked'];
 		let gd = document.getElementById(id);
 
 		if (id && gd._dragging) {
+			console.log("relayoutevent(): Event is associated with dragging. " 
+						+ "Returning.");
 			return;
 		}
 
@@ -53,46 +57,62 @@ function plot(logFile, test, cb) {
 			// is set to false and Plotly.relayout is called, another relayout
 			// event is triggered, but eventdata will not have 
 			// eventdata['yaxis.autorange'] = false.
+			console.log("relayoutevent(): yaxis.autorange == false. Returning."); 
 			return;
 		}
 
-		let current = JSON.stringify(eventdata);
+		//let current = JSON.stringify(eventdata);
+		let current = eventdata;
 
-		console.log("relayout.last    = " + relayoutevent.last);
-		console.log("relayout.current = " + current);
-		console.log("relayout.current === relayout.last: " 
-					+ relayoutevent.last === current);
+		console.log("relayout.last    = ");
+		console.log(relayoutevent.last);
+		console.log("relayout.current = ");
+		console.log(current);
 
-		// Deal with limitation on Plotly's events. This blocks
-		// a relayout in this function from triggering another
-		// relayout event.
+		// Deal with limitation on Plotly's events. This blocks a relayout in
+		// this function from triggering another relayout event.
+		let update = false;
 		if (typeof(relayoutevent.last) !== "undefined") {
-			if (relayoutevent.last === current) {
-				console.log('relayoutevent(): Relayout already called'
-						+ ' with same event data. No relayout will be performed.');
+			let keys = Object.keys(current);
+			for (let key in keys) {
+				if (current[keys[key]] === relayoutevent.last[keys[key]]) {
+					console.log('Value of ' 
+									+ keys[key] 
+									+ ' in current matches that in last');
+				} else {
+					console.log('Value of ' 
+							  + keys[key] 
+						      + ' in current does not match that in last');
+					update = true;
+					break;
+				}
+			}
+			if (!update) {				
+				console.log('relayoutevent(): Relayout already called with'
+						  + ' same event data. No relayout will be performed.');
 				return;
 			} else {
-				console.log('relayoutevent(): Changing relayoutevent.last to ');
-				console.log(current);
+				console.log('relayoutevent(): ' 
+						  + 'Updating relayoutevent.last = current');
 				relayoutevent.last = current;
 			}				
 		} else {
-			console.log('relayoutevent(): Setting undefined relayoutevent.last to ');
-			console.log(current);
+			console.log('relayoutevent(): Setting undefined relayoutevent.last '
+					  + 'to relayoutevent.current');
 			relayoutevent.last = current;
 		}
 
 		// Ideally there would be a better way to determine if zoom was reset.
 		// Use plotly_dblcick? TODO: zoomReset is no longer used.
 		let zoomReset = eventdata['xaxis.autorange'] == true 
-						&& eventdata['yaxis.autorange'] == true
+						|| eventdata['yaxis.autorange'] == true
 
 		if (zoomReset) {
-			console.log('relayoutevent(): Zoom reset event on '
-							+ URLWatcher['lastClicked'] + " Event data:");
+			console.log('relayoutevent(): Relayout event was zoom reset on '
+							+ URLWatcher['lastClicked'] + ". Event data:");
 		} else {
-			console.log('relayoutevent(): Zoom event on '
-							+ URLWatcher['lastClicked'] + " Event data:");
+			console.log('relayoutevent(): Relayout event was zoom in on '
+							+ URLWatcher['lastClicked'] + ". Event data:");
 		}
 		console.log(eventdata);
 
@@ -106,18 +126,15 @@ function plot(logFile, test, cb) {
 			// Clone object
 			let eventdatac = JSON.parse(JSON.stringify(eventdata));
 
-
-			// Needed b/c zoom event does not use yaxis.range that was set on initial plot.
-			// Better test is if gd.layout.yaxis.range is set?
-			if (URLWatcher['plots'][p]['paramID'] === 'fails') {
-				// TODO: Range values for 'fails' appear in two places in code. 
+			// Needed b/c zoom event does not use yaxis.range that was set on
+			// initial plot. Better test is if gd.layout.yaxis.range is set?
+			if (false && URLWatcher['plots'][p]['paramID'] === 'fails') {
 				let gd = document.getElementById(id);
 				eventdatac['yaxis.range[0]'] = gd.layout.yaxis.range[0];
 				eventdatac['yaxis.range[1]'] = gd.layout.yaxis.range[1];
 				eventdatac['yaxis.autorange'] = false;
 				console.log('relayoutevent(): Setting layout data on ' 
-								+ URLWatcher['plots'][p]['paramID']
-								+ " to ");
+							+ id + " to ");
 				console.log(eventdatac);
 			}
 
@@ -126,11 +143,11 @@ function plot(logFile, test, cb) {
 			if (a && b) {
 				// Don't update clicked plot unless it was 'fails', which needs
 				// to have its y-range reset.
-				console.log('relayoutevent(): No action being taken for ' 
-							+ URLWatcher['plots'][p]['paramID']);
+				console.log('relayoutevent(): No action being taken for ' + id);
 			} else {
 				delete eventdatac['yaxis.range[0]'];
 				delete eventdatac['yaxis.range[1]'];
+				delete eventdatac['yaxis.autorange'];
 				console.log('relayoutevent(): Calling Plotly.relayout() on '
 								+ id
 								+ ' using:');
@@ -182,11 +199,8 @@ function plot(logFile, test, cb) {
 		}
 	}
 
-	// Disable double click
-	// https://codepen.io/etpinard/pen/XNXKaM
-	// https://codepen.io/plotly/pen/PqgLmv
 	function clickevent(eventdata) {
-		console.log('clickevent(): Click event. Data:');
+		console.log('clickevent(): Click-on-data event. Data:');
 		console.log(eventdata);
 
 		d = new Date(eventdata['points'][0]['x'].replace(" ","T"));
@@ -215,7 +229,8 @@ function plot(logFile, test, cb) {
 	let trace = {'good': [], 'bad': [], 'nosample': []};
 	function doplots(p, rows) {
 
-		// Plots are created and shown serially.
+		// Plots are created and shown serially. Otherwise time to show anything
+		// equals about 2x the time to plot one only.
 
 		let plotMsg = "doplots(): plot #" + p + " plotting started.";
 		timeit(plotMsg);
@@ -244,8 +259,10 @@ function plot(logFile, test, cb) {
 		for (key in trace) {
 			trace[key][p]['x'] = data['date'];
 			trace[key][p]['y'] = data[key];
-			// Set bar width to sampling period.
-			trace[key][p]['width'] = interval;
+			// Set bar width to slightly less than sampling period.
+			// TODO: Adjust this based on zoom level and bar width
+			// Can only see gaps for certain combinations.
+			trace[key][p]['width'] = 0.90*interval;
 		}
 
 		traces[p] = [trace['good'][p], trace['bad'][p], trace['nosample'][p]];
@@ -265,9 +282,9 @@ function plot(logFile, test, cb) {
 
 		if (paramID === 'ttfb') {
 			let threshold = URLWatcher['settings'][test]['tests']['firstByte'];
-			condition = " ≤ "; 
-			condition_bad = " > ";
-			layouts[p]['yaxis']['range'] = [-0.05*threshold, 2*threshold];
+			condition = " ≤ " + threshold; 
+			condition_bad = " > " + threshold;
+			layouts[p]['yaxis']['range'] = [-0.05*threshold, threshold];
 
 			let annotation0 = 	
 				{
@@ -278,6 +295,7 @@ function plot(logFile, test, cb) {
 					axref: 'x',
 					ayref: 'y',
 					text: '',
+					scale: 1,
 					arrowcolor: 'red',
 					showarrow: true,
 					arrowhead: 2
@@ -299,17 +317,27 @@ function plot(logFile, test, cb) {
 									x: trace['good'][p].x[i],
 									ax: trace['good'][p].x[i]
 								})
+				// TODO: Add another arrow head with everything the same except for scale
+				// = 2 and color = black so that arrowhead is visible when zoomed-in.
+				// Could also try to figure out arrow head width based on how wide
+				// bars are in pixels, but would need to do that after rendering.
 				layouts[p]['annotations'].push(annotation);
 			}
+			console.log('Annotations: on ' + paramID + ":");
 			console.log(layouts[p]['annotations'])
 		}
 
+		let units = URLWatcher['plots'][p]['paramUnits'];
+			units = units ? " [" +  units + "] " : '';
+
 		trace['good'][p].name = URLWatcher['plots'][p]['paramName'] 
 								+ condition
+								+ units
 								+ " (N = " + data['Ngood'] + ")";
 
 		trace['bad'][p].name = URLWatcher['plots'][p]['paramName']
 								+ condition_bad
+								+ units
 								+ " (N = " + data['Nbad'] + ")";
 
 		trace['nosample'][p].name = "No sample; connection error "
@@ -320,23 +348,40 @@ function plot(logFile, test, cb) {
 			.newPlot(id, traces[p], layouts[p], URLWatcher['plotly']['options'])
 			.then(function() {
 				$(plot).on('mousedown', () => {
-					console.log(id + ' mousedown');
+					console.log(id + ' jQuery mousedown');
 					// Plotly's plotly_relayout does not return the identity
 					// of the plot clicked. So this is stored using a top-level
 					// variable.
+					if (URLWatcher['lastClicked'] == id) {
+						let now = new Date().getTime();
+						if (now - URLWatcher['lastClickedTime'] < 500) {
+							console.log(id + ' jQuery alt. double click.');
+						}
+					}
 					URLWatcher['lastClicked'] = id;
 					URLWatcher['lastClickedTime'] = new Date().getTime();
-				});
+				})
+				$(plot).on('dblclick', () => {
+					// Does not trigger! Over-written by Plotly?
+					// (b/c works on div if no plot written to div.)
+					console.log(id + ' jQuery standard double click');
+				})
+
+				plot.on('plotly_doubleclick', function() {
+					console.log(id + ' plotly double click');
+				})
+				plot.on('plotly_click', clickevent); // Click on data only!
 				plot.on('plotly_legendclick', legendclickevent); 
 				plot.on('plotly_relayout', relayoutevent);
 				plot.on('plotly_relayouting', relayoutingevent);
-				plot.on('plotly_click', clickevent);
 				timeit(plotMsg, plotMsg.replace("started", "took {}"));
 				p = p + 1;
 				if (p < URLWatcher['plots'].length) {		
 					// setTimout used so browser rendering of previous plot 
-					// happens before processing for next. Only tested in Chrome.
-					setTimeout(() => {doplots(p, rows)},0);
+					// happens before processing for next.
+					setTimeout(() => {
+						doplots(p, rows)
+					}, 0);
 				}
 			})
 	}
@@ -345,14 +390,16 @@ function plot(logFile, test, cb) {
 
 		let unpackMsg = "Plotly.d3.csv.unpack(): " + key + " unpacking started.";
 		timeit(unpackMsg);
+
 		let data = [[],[],[],[]];
 		let Ngood = 0;
 		let Nbad = 0;
 		let Nnosample = 0;
+		let datestr = "";
 		for (let r = 0; r < rows.length; r++) {
 			if (URLWatcher['displayLocalTime']) {
-				d = new Date(rows[r]['Date']);
-				off = d.getTimezoneOffset()*60000;
+				let d = new Date(rows[r]['Date']);
+				let off = d.getTimezoneOffset()*60000;
 				d.setTime(d.getTime() - off);
 				datestr = d.toISOString().replace(/T/,' ').replace(/Z/,'');
 			} else {
@@ -395,8 +442,8 @@ function plot(logFile, test, cb) {
 			data[2].push(bad);
 			data[3].push(nosample);
 		}
+
 		timeit(unpackMsg, unpackMsg.replace("started","took {}"));
-		//console.log(data);
 		return {
 					'date': data[0],
 					'good': data[1],
@@ -405,16 +452,16 @@ function plot(logFile, test, cb) {
 					'Ngood': Ngood,
 					'Nbad': Nbad,
 					'Nnosample': Nnosample
-		 		};
+		 		}
 	}
-
 	let logFileReadMsg = 'Plotly.d3.csv(): ' + logFile + ' read start.';
 	timeit(logFileReadMsg);
 	Plotly.d3.csv(logFile, 
 		function (err, rows) {
-			timeit(logFileReadMsg, 
-				'Plotly.d3.csv(): ' + logFile + ' read in {}; # rows = ' + rows.length);
-
+			timeit(logFileReadMsg, 'Plotly.d3.csv(): ' 
+									+ logFile 
+									+ ' read in {}; # rows = ' 
+									+ rows.length);
 			doplots(0, rows);
 	})
 }
