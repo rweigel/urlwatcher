@@ -24,7 +24,7 @@ if (0) {
 
 if (!sver.gte(process.version,'6.0.0')) {
 	console.log(
-			clc.red("node.js version >= 6 required. node.js -v returns "
+			console.log("node.js version >= 6 required. node.js -v returns "
 			+ process.version 
 			+ ". See README for instructions on upgrading using nvm."));
 	process.exit(1);
@@ -737,7 +737,7 @@ function test(testName, work) {
 							+ " on " 
 							+ config.app.hostname
 							+ " " 
-							+ id
+							+ work.requestID
 		email(work);
 	}
 
@@ -748,7 +748,7 @@ function test(testName, work) {
 							+ " on "
 							+ config.app.hostname
 							+ " " 
-							+ id
+							+ work.requestID
 		email(work);
 	}
 
