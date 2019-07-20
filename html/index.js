@@ -137,7 +137,8 @@ $(document).ready(() => {
 			console.log("#testDropdown.change(): Calling setHashValue()");
 			setHashValue('test', val);
 		} else {
-			console.log("#testDropdown.change(): Not updating hash because event not triggered by user interaction.");
+			console.log("#testDropdown.change(): Not updating hash because "
+		   			  + " event not triggered by user interaction.");
 		}
 	})
 
@@ -199,8 +200,10 @@ function hashchange(evt) {
 	}
 
 	console.log('hashchange(): window.hashchange event: Hash changed.');
-	console.log('hashchange(): evt.originalEvent = ' + (evt.originalEvent ? true : false))
-	console.log('hashchange(): evt.isTrigger = ' + (evt.isTrigger ? true : false))
+	console.log('hashchange(): evt.originalEvent = ' 
+					+ (evt.originalEvent ? true : false))
+	console.log('hashchange(): evt.isTrigger = ' 
+					+ (evt.isTrigger ? true : false))
 	console.log(evt);
 
 	let tests = Object.keys(URLWatcher['dropdowns']);
