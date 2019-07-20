@@ -16,7 +16,7 @@
   },
   "scripts": {
     "test": "bash test/test.sh",
-      "start": "node app.js private/app-config-private.json",
-      "start2": "bash -c 'source ~/.bash_profile; nvm use 6 && node app.js private/app-config-private.json'"      
+    "test-remote": "bash test/test-remote.sh",
+    "start": "node app.js private/app-config-private.json"
   }
 }
