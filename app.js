@@ -214,8 +214,8 @@ function server() {
 
 	app.use('/log', express.static(__dirname + '/log'));
 	app.use('/html', express.static(__dirname + '/html'));
-	app.use('/log', serveIndex(__dirname + '/log'));
-	app.use('/html', serveIndex(__dirname + '/html'));
+        app.use('/log', serveIndex('log', {icons: true}));
+        app.use('/html', serveIndex('html', {icons: true}));
 
 	app.get('/', function(req, res) {
 		res.sendFile(__dirname + '/html/index.htm');
