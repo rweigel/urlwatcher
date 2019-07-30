@@ -208,14 +208,26 @@ function round(t) {
 
 function server() {
 
-	var express = require('express');
-	var serveIndex = require('serve-index');
-	var app = express();
+    var express = require('express');
+    var serveIndex = require('serve-index');
+    var app = express();
+
+    // The following is a hack to make the links work in a serve-index
+    // directory listing. serve-index always makes links in the
+    // listing relative to the server root, which will not be correct
+    // if this app is behind a reverse proxy.  If the path from which
+    // this app is served on the proxy changes from "/urlwatcher",
+    // this code must be updated. This is the method suggested by
+    // https://github.com/expressjs/serve-index/issues/53
+    app.use(function (req, res, next) {
+	req.originalUrl = "/urlwatcher" + req.url;
+	next()
+    })
 
 	app.use('/log', express.static(__dirname + '/log'));
 	app.use('/html', express.static(__dirname + '/html'));
-        app.use('/log', serveIndex('log', {icons: true}));
-        app.use('/html', serveIndex('html', {icons: true}));
+        app.use('/log', serveIndex(__dirname + '/log', {icons: true, view: 'details'}));
+        app.use('/html', serveIndex(__dirname + '/html', {icons: true, view: 'details'}));
 
 	app.get('/', function(req, res) {
 		res.sendFile(__dirname + '/html/index.htm');
