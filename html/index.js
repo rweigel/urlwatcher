@@ -282,7 +282,7 @@ function hashchange(evt) {
 
 		// Set and show log directory link
 		$('#logDirectory')
-			.attr("href", "log/" + test)
+			.attr("href", "log/" + test + "/")
 			.show();
 
 		// Set and show test settings file 
