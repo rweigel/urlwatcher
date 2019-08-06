@@ -654,36 +654,39 @@ function test(testName, work) {
 							.replace(/T.*/,'')
 							.replace(/-/g,'');
 
-	let text = "Test URL\n  "
-				+ urlTests[testName].url 
-				+ "\n\n" 
-				+ work.emailBody.join("\n")
-				+ "\n\nTest configuration\n  " 
-				+ config.app.publicHTML + "log/" 
-				+ testName + "/settings.json";
-
-	let text2 = "\n\nSummary file:\n  " 
-					+ config.app.publicHTML 
-					+ results[L-1].entryFile.replace(__dirname + "/", "")
-					+ "\n\nLast summary plot:\n  " 
+	let body = "Test URL\n  "
+					+ urlTests[testName].url 
+					+ "\n\n" 
+					+ work.emailBody.join("\n")
+				+ "\n\nLast summary plot:\n  " 
 					+ config.app.publicHTML 
 					+ "#" 
-					+ testName 
-					+ "-" + requestDate 
-					+ ".csv";
+					+ "date="
+					+ requestDate 
+					+ "&"
+					+ "test="
+					+ testName;
+
+		body = body
+				+ "\n\nSummary file:\n  " 
+					+ config.app.publicHTML 
+					+ results[L-1].entryFile.replace(__dirname + "/", "")
+				+ "\n\nTest configuration\n  " 
+					+ config.app.publicHTML + "log/" 
+					+ testName + "/settings.json";
 
 	if (L > 1) { // More than one test performed.
 		// Assumes file from previous day exists.
-		text2 = text2 
+		body = body 
 					+ "\n\nLast two response files:\n  " 
 					+ config.app.publicHTML 
 					+ results[L-1].workFile.replace(__dirname + "/", "");
-		text2 = text2 
+		body = body 
 					+ "\n  "
 					+ config.app.publicHTML
 					+ results[L-2].workFile.replace(__dirname + "/", "");
 	} else {
-		text2 = text2
+		body = body
 					+ "\n\nLast response file:\n  "
 					+ config.app.publicHTML 
 					+ results[L-1].workFile.replace(__dirname + "/", "");
@@ -729,7 +732,7 @@ function test(testName, work) {
 
 	if (sendFailEmail || sendPassEmail) {
 		work.emailTo = urlTests[testName]['emailAlertsTo'];
-		work.emailBody = text + text2;
+		work.emailBody = body;
 	
 	}
 
