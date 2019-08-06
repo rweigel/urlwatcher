@@ -52,8 +52,12 @@ a:visited {
     left: 8px;
     right: 8px;
     bottom: 0;
-    height: 12em;
-    width: 25em;
+    width: -webkit-fit-content;
+    width: -moz-fit-content;
+    width: fit-content;
+    height: -webkit-fit-content;
+    height: -moz-fit-content;
+    height: fit-content;
     padding-left: -1em;
     padding-right: 2em;
     padding-bottom: 0em;
