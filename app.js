@@ -181,6 +181,8 @@ function readTests() {
 		delete urlTests[testName]["__comment"];
 		delete urlTests[testName]["tests"]["__comment"];
 
+		urlTests[testName]["emailThreshold"] = urlTests[testName]["emailThreshold"] || 1;
+
 		if (urlTests[testName]['emailAlerts']) {
 			let a = urlTests[testName]['emailAlertsTo'];
 			let b = urlTests[testName]['emailAlertsTo'] === '!!!!';
@@ -474,7 +476,7 @@ function test(testName, work) {
 	work = computeDirNames(testName, work);
 
 	urlTests[testName].results.push(work);
-	if (urlTests[testName].results.length > 2) {
+	if (urlTests[testName].results.length > urlTests[testName]["emailThreshold"]) {
 		urlTests[testName].results.shift();
 	}
 
@@ -703,47 +705,88 @@ function test(testName, work) {
 	let sendPassEmail = false;
 	let s = (fails > 1) ? "s" + " (" + fails + ")" : "";
 
+	// Check standard conditions for sending email
 	if (L == 1 && results[L-1].testError) {
 		sendFailEmail = true;
 	}
 	if (L > 1) {
 		if (results[L-1].testError && !results[L-2].testError) {
-			sendFailEmail = true;
+			//sendFailEmail = true;
 		}
 		if (!results[L-1].testError && results[L-2].testError) {
 			sendPassEmail = true;
 		}
-		if (results[L-1].testError && results[L-2].testError) {
-			let f = "s" + " (" + results[L-2].testFails + ")";
-			let s2 = results[L-2].testFails > 1 ? f : "";
-			let reason = testName 
-						+ ": Not sending email because error" 
-						+ s 
-						+ " found in this check and error" 
-						+ s2 
-						+ " found in last check.";
-			console.log("test(): " + reason);
-			work.emailNotSentReason = reason;
-		}
-
 	}
 
-	work.emailSent = false;
+	// Check conditions for not sending standard email
+	let emailThreshold = urlTests[testName]["emailThreshold"];
+	if (L >= emailThreshold) {
+		let n = 0;
+		for (let i = 0; i < emailThreshold; i++) {
+			if (results[L-i-1].testError) {
+				n = n + 1;
+			} else {
+				break;
+			}
+		}
+		if (n == emailThreshold) {
+			sendFailEmail = true;
+		}
+		if (n > 0 && n < emailThreshold) {
+			let reason = testName 
+						+ ": Not sending fail email b/c number of consecutive failures (" 
+						+ n 
+						+ ") is less than " 
+						+ emailThreshold 
+						+ ".";
+			console.log("test(): " + reason);
+			sendFailEmail = false;
+			work.emailNotSentReason = reason;			
+		}
+	}
+
+	if (sendFailEmail) {
+		// If last email was fail email, don't send another.
+		sendFailEmail = urlTests[testName]['lastEmail'] === 'fail' ? false : true;
+		if (!sendFailEmail) {
+			let reason = testName 
+						+ ": Not sending fail email b/c fail email was last email sent.";
+			console.log("test(): " + reason);
+			work.emailNotSentReason = reason;
+		} else {
+			console.log("test(): Sending fail email.");
+		}
+	}
+
+	if (sendPassEmail) {
+		// Only send pass email if last email sent was about failure.
+		sendPassEmail = urlTests[testName]['lastEmail'] === 'fail' ? true : false;
+		if (!sendPassEmail) {
+			let reason = testName 
+						+ ": Not sending pass email b/c fail email was not yet sent.";
+			console.log("test(): " + reason);
+			work.emailNotSentReason = reason;
+		} else {
+			console.log("test(): Sending pass email.");
+		}
+	}
+
+	if (sendFailEmail) {
+		 urlTests[testName]['lastEmail'] = 'fail';
+	}
+	if (sendPassEmail) {
+		 urlTests[testName]['lastEmail'] = 'pass';
+	}
 
 	if (sendFailEmail || sendPassEmail) {
 		work.emailTo = urlTests[testName]['emailAlertsTo'];
-		work.emailBody = body;
-	
+		work.emailBody = body;	
 	}
 
-
-	// Create a short id to put in subject line to prevent email clients
+	// Put partial timestamp to in subject line to prevent email clients
 	// from threading messages.
-	work.requestID = crypto.createHash("md5")
-						.update(work.requestStartTime.toISOString())
-						.digest("hex")
-						.substring(0,4)
-
+	let requestTime = work.requestStartTime.toISOString().substring(11,21);
+	
 	if (sendFailEmail) {
 		work.emailSubject = "❌ "
 							+ testName 
@@ -751,8 +794,8 @@ function test(testName, work) {
 							+ "Test Failure" + s
 							+ " on " 
 							+ config.app.hostname
-							+ " " 
-							+ work.requestID
+							+ " @ " 
+							+ requestTime;
 		email(work);
 	}
 
@@ -762,8 +805,8 @@ function test(testName, work) {
 							+ " URLWatcher: All Tests Passed"
 							+ " on "
 							+ config.app.hostname
-							+ " " 
-							+ work.requestID
+							+ " @ " 
+							+ requestTime;
 		email(work);
 	}
 

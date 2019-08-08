@@ -6,6 +6,9 @@
 		"__comment": "comma-separated email addresses to send app start/stop messages",
 		"emailStatusTo": "!!!!",
 
+		"__comment": "Number of consecutive failures required for email to be sent",
+		"emailThreshold": 1,
+
 		"__comment": "'sendmail' (use if able to send emails from local system) or 'nodemailer' (send using external system)",
 		"emailMethod": "sendmail",
 
