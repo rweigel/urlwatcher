@@ -1,0 +1,30 @@
+
+<head>
+    <!-- Plotly.js -->
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+</head>
+<body>
+	<div id='graph'/>
+	<script>
+	data = [{
+		type: "scattergl",
+		mode: "markers",
+		x: [0,1,2,3],
+		y: [0,1,2,0]
+	}]
+	data.push({
+		type: "scattergl",
+		mode: "lines",
+		fill: 'tozeroy',
+		hoverinfo: 'none',		
+		x: [0,0,0,1,1,1,2,2,2,3,3,3],
+		y: [0,0,0,0,1,0,0,2,0,0,0,0]
+	})
+	var layout = {showlegend: false}
+	console.log('Start')
+	Plotly
+		.plot('graph', data = data, layout = layout, {showSendToCloud: false})
+		.then(function() {console.log('Done')});
+    </script>
+</body>
+
