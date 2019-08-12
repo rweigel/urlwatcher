@@ -647,8 +647,7 @@ function test(testName, work) {
 
 	let requestDate = work.requestStartTime
 						.toISOString()
-						.replace(/T.*/,'')
-						.replace(/-/g,'');
+	                                        .replace(/T.*/,'');
 
 	let d = new Date(work.requestStartTime);
 	let requestDateLast = (new Date(d.setDate(d.getDate()-1)))
