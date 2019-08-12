@@ -17,6 +17,9 @@
 		"__comment": "Location for log files. Path is relative to location of app.js",
 		"logDirectory": "log",
 
+		"__comment": "Hostname of test used in email subject line",
+		"hostname": "",
+
 		"__comment": "Location of file with tests for app to run. Path is relative to location of app.js",
 		"urlTestsFile": "tests/example.json",
 
