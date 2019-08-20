@@ -1,41 +1,39 @@
 {
-	"Example": {
-		"__comment": "The string associated with the above key is the name of the test suite that will be used in emails and for log file names.",
+	"__comment": "The string associated with the above key is the name of the test suite that will be used in emails and for log file names.",
 
-		"__comment": "Set to true if alerts should be sent to address of emailAlertsTo below.",
-		"emailAlerts": false,
+	"__comment": "Set to true if alerts should be sent to address of emailAlertsTo below.",
+	"emailAlerts": false,
 
-		"__comment": "Email address to send notice when an test error occurs.",
-		"emailAlertsTo": "!!!!",
+	"__comment": "Email address to send notice when an test error occurs.",
+	"emailAlertsTo": "!!!!",
 
-		"__comment": "The URL to test",
-		"url": "http://localhost:4444/html/example.",
+	"__comment": "The URL to test",
+	"url": "http://localhost:4444/html/example.",
 
-		"__comment": "Time interval between tests in milliseconds",
-		"interval": 60000,
+	"__comment": "Time interval between tests in milliseconds",
+	"interval": 60000,
 
-		"__comment": "Any test may be omitted. Thes are all of the possible tests.",
-		"tests": {
-			"__comment": "Error triggered if response size changes and lengthChanged = true",
-			"lengthChanged": true,
+	"__comment": "Any test may be omitted. Thes are all of the possible tests.",
+	"tests": {
+		"__comment": "Error triggered if response size changes and lengthChanged = true",
+		"lengthChanged": true,
 
-			"__comment": "Error triggered if HTTP status code does not match statusCode value",
-			"statusCode": 200,
+		"__comment": "Error triggered if HTTP status code does not match statusCode value",
+		"statusCode": 200,
 
-			"__comment": "Error triggered if response MD5 changes and md5Changed = true",
-			"md5Changed": true,
+		"__comment": "Error triggered if response MD5 changes and md5Changed = true",
+		"md5Changed": true,
 
-			"__comment": "Error triggered if time to first byte in milliseconds > firstByte. See timingPhases at https://github.com/request/request",
-			"firstByte": 2,
+		"__comment": "Error triggered if time to first byte in milliseconds > firstByte. See timingPhases at https://github.com/request/request",
+		"firstByte": 2,
 
-			"__comment": "Error triggered if duration HTTP download in milliseconds > download. See timingPhases at https://github.com/request/request",
-			"download": 0.3,
+		"__comment": "Error triggered if duration HTTP download in milliseconds > download. See timingPhases at https://github.com/request/request",
+		"download": 0.3,
 
-			"__comment": "Error triggered if duration of entire HTTP round-trip in milliseconds > total. See timingPhases at https://github.com/request/request",
-			"total": 5,
+		"__comment": "Error triggered if duration of entire HTTP round-trip in milliseconds > total. See timingPhases at https://github.com/request/request",
+		"total": 5,
 
-			"__comment": "Error triggered if body does not match RegExp(bodyRegExp[0], bodyRegExp[1])",
-			"bodyRegExp": ["testing123",""]
-		}
+		"__comment": "Error triggered if body does not match RegExp(bodyRegExp[0], bodyRegExp[1])",
+		"bodyRegExp": ["testing123",""]
 	}
 }
