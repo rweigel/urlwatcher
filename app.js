@@ -145,7 +145,7 @@ function readConfig(configFile) {
 	if (!fs.existsSync(config.app.logDirectory)) {
 		mkdirp.sync(config.app.logDirectory);
 		console.log("readConfig(): Created log directory " 
-													+ config.app.logDirectory)
+					+ config.app.logDirectory)
 	}
 	return config;
 }
@@ -157,7 +157,12 @@ function readTests() {
 	let urlTests;
 	if (fs.existsSync(urlTestsFile)) {
 		let tmp = fs.readFileSync(urlTestsFile);
-		urlTests = JSON.parse(tmp);
+		try {
+			urlTests = JSON.parse(tmp);
+		} catch (e) {
+			console.log("Could not JSON parse " + urlTestsFile + ". Exiting.");
+			process.exit(1);				
+		}
 		console.log("readTests(): Read " + urlTestsFile);
 	} else {
 		console.log("readTests(): File " + urlTestsFile + " not found. Exiting.");	
@@ -169,10 +174,23 @@ function readTests() {
 	// Replace references to files with content of file.
 	for (let testName in urlTests) {
 		if (typeof(urlTests[testName]) === "string") {
-			console.log("readTests(): Reading and parsing\n  " 
-							+ __dirname + "/" + urlTests[testName])
-			let tmp = fs.readFileSync(__dirname + "/" + urlTests[testName]);
-			urlTests[testName] = JSON.parse(tmp)[testName];		
+			let fname = __dirname + "/" + urlTests[testName];
+			console.log("readTests(): Reading and parsing\n  " + fname);
+			if (!fs.existsSync(fname)) {
+				console.log("readTests(): File "
+						+ fname 
+						+ " referenced in "
+						+ urlTestsFile
+						+ " not found. Exiting.");	
+				process.exit(1);				
+			}
+			let tmp = fs.readFileSync(fname);
+			try {
+				urlTests[testName] = JSON.parse(tmp);
+			} catch (e) {
+				console.log("Could not JSON parse " + fname + ". Exiting.");
+				process.exit(1);				
+			}
 		}
 	}
 
@@ -476,7 +494,7 @@ function test(testName, work) {
 	work = computeDirNames(testName, work);
 
 	urlTests[testName].results.push(work);
-	if (urlTests[testName].results.length > urlTests[testName]["emailThreshold"]) {
+	if (urlTests[testName].results.length > 1 + urlTests[testName]["emailThreshold"]) {
 		urlTests[testName].results.shift();
 	}
 
@@ -514,8 +532,6 @@ function test(testName, work) {
 		report(testName, work);
 		return;
 	}
-
-	urlTests[testName].results[L-1].testError = true;
 
 	work.testFailures = [];
 	work.emailBody = [];
@@ -709,14 +725,12 @@ function test(testName, work) {
 		sendFailEmail = true;
 	}
 	if (L > 1) {
-		if (results[L-1].testError && !results[L-2].testError) {
-			//sendFailEmail = true;
-		}
 		if (!results[L-1].testError && results[L-2].testError) {
-			sendPassEmail = true;
+			sendPassEmail = true;			
 		}
 	}
 
+	//console.log(sendPassEmail);
 	// Check conditions for not sending standard email
 	let emailThreshold = urlTests[testName]["emailThreshold"];
 	if (L >= emailThreshold) {
