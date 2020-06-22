@@ -1,24 +1,56 @@
-
 <head>
-    <!-- Plotly.js -->
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
 </head>
 <body>
 	<div id='graph'/>
 	<script>
+	function points2spikes(d,w) {
+		dd = {x: [], y: []};
+		if (w == 0) {
+			for (i = 0;i < d.x.length;i++) {
+				dd.x.push(d.x[i]);
+				dd.x.push(d.x[i]);
+				dd.x.push(d.x[i]);
+				dd.y.push(0);
+				dd.y.push(d.y[i]);
+				dd.y.push(0);
+			}
+		} else {
+			for (i = 0;i < d.x.length;i++) {
+				dd.x.push(d.x[i]-w/2);
+				dd.x.push(d.x[i]-w/2);
+				dd.x.push(d.x[i]);
+				dd.x.push(d.x[i]+w/2);
+				dd.x.push(d.x[i]+w/2);
+				dd.y.push(0);
+				dd.y.push(d.y[i]);
+				dd.y.push(d.y[i]);
+				dd.y.push(d.y[i]);
+				dd.y.push(0);
+			}			
+		}
+		return dd;
+	}
+	// First scatter is used for hover
 	data = [{
 		type: "scattergl",
 		mode: "markers",
-		x: [0,1,2,3],
-		y: [0,1,2,0]
-	}]
+		marker: {size: 2},
+		x: [0,1,2,3,4],
+		y: [0,1,2,0,-1] 
+	}];
+	d = points2spikes(data[0],0.1);
+	// Note fill to zero not working for negative values b/c of bug:
+	// https://github.com/plotly/plotly.js/issues/4017
 	data.push({
 		type: "scattergl",
 		mode: "lines",
 		fill: 'tozeroy',
-		hoverinfo: 'none',		
-		x: [0,0,0,1,1,1,2,2,2,3,3,3],
-		y: [0,0,0,0,1,0,0,2,0,0,0,0]
+		fillcolor: 'black',
+		hoverinfo: 'none',
+		line: {width: 0},	
+		x: d.x,
+		y: d.y
 	})
 	var layout = {showlegend: false}
 	console.log('Start')
