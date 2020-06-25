@@ -191,6 +191,8 @@ function hashchange(evt) {
 	// hits enter after changing to original value. This will always result
 	// in a page reload.
 
+
+
 	if (hashchange.block) {
 		// Before this function triggers a hash change, it
 		// sets hashchange.selfTrigger = true. This prevents
@@ -223,7 +225,7 @@ function hashchange(evt) {
 	}
 
 	console.log('hashchange(): Clearing plots.');
-	$('#plots').html('');
+	//$('#plots').html('');
 
 	hashchange.selfTrigger = true;
 	setHashValue('test', test);
@@ -290,12 +292,47 @@ function hashchange(evt) {
 			.attr("href", "log/" + test + "/settings.json")
 			.show();
 
+
+
 		let testSettingsMsg = "getDates.cb(): Getting test settings"; 
 		timeit(testSettingsMsg);
 		getJSON('log/' + test + '/settings.json', function (data) {
 			timeit(testSettingsMsg, testSettingsMsg.replace('settings','too {}'));
 			URLWatcher['settings'][test] = data;
 			plot(logFile, test);
+
+    // Reload every 60 seconds
+    // TODO: Send HEAD request to see if request files changed. If not, don't update.
+    if (hashchange.interval) {
+	clearInterval(hashchange.interval);
+    }
+    hashchange.interval = setInterval(() => {
+	$.ajax({
+            type: "HEAD",
+            async: true,
+            url: logFile,
+	}).done(function(message,text,jqXHR){
+	    console.log("---------------------");
+            console.log(jqXHR.getResponseHeader('last-modified'));
+	    if ("logLastModified" in hashchange && logFile in hashchange.logLastModified) {
+		last = hashchange.logLastModified[logFile];
+		now = jqXHR.getResponseHeader('last-modified');
+		hashchange.logLastModified[logFile] = now;
+		if (now !== last) {
+		    console.log("Log file " + logFile + " has changed. Plotting.");
+		    plot(logFile, test);
+		} else {
+		    console.log("Log file " + logFile + " has not changed since " + last);
+		}
+	    } else {
+		hashchange.logLastModified = {} 
+		hashchange.logLastModified[logFile] = jqXHR.getResponseHeader('last-modified');
+		plot(logFile, test);
+	    }
+	    console.log("---------------------");
+	});
+    }, 10000);
+
 		});
 	});
 }
