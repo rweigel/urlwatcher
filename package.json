@@ -12,11 +12,13 @@
     "request": "^2.88.0",
     "semver": "^6.2.0",
     "sendmail": "^1.4.1",
-    "serve-index": "^1.9.1"
+    "serve-index": "^1.9.1",
+    "check-disk-space": "^2.1.0"
   },
   "scripts": {
     "test": "bash test/test.sh",
     "test-remote": "bash test/test-remote.sh",
-    "start": "node app.js private/app-config-private.json"
+    "start": "node app.js private/app-config.json",
+    "server": "nohup forever app.js private/app-config.json &"
   }
 }

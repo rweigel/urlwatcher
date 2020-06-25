@@ -341,9 +341,28 @@ function report(testName, work) {
 			workClone[key] = workClone[key].replace(__dirname + "/", "");
 		}
 	}
-	// Write work file
-	fs.writeFileSync(work.workFile, JSON.stringify(workClone, null, 4));
-	
+        if (!workClone.testError) {
+	    // Save disk space by not storing body.
+	    // TODO: Write reference body and put link to it in workClone.body.
+            delete workClone.body;
+        }
+
+
+    const checkDiskSpace = require('check-disk-space')
+    checkDiskSpace(__dirname).then((diskSpace) => {
+	if (diskSpace.free < 10000000) {
+	    email(config.app.emailStatusTo, 
+		  "URLWatcher low disk space on " 
+		  + config.app.hostname 
+		  + " at "
+		  + (new Date()).toISOString()
+		  ,
+		  "Free: " + diskSpace.free + "\n" + "Size: " + diskSpace.size + "\nWill not write result file.");
+	} else {
+	    fs.writeFileSync(work.workFile, JSON.stringify(workClone, null, 4));
+	}
+    })
+
 	// Re-read test file.
 	try {
 		//urlTests = readTests();
