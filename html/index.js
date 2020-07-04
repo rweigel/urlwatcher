@@ -301,12 +301,20 @@ function hashchange(evt) {
 			URLWatcher['settings'][test] = data;
 			plot(logFile, test);
 
-    // Reload every 60 seconds
-    // TODO: Send HEAD request to see if request files changed. If not, don't update.
+    // Reload every updateInterval/1000 seconds
+    let updateInterval = 60000;
     if (hashchange.interval) {
 	clearInterval(hashchange.interval);
     }
+    var lastDate = "";		   
     hashchange.interval = setInterval(() => {
+	// If date changes, change plot to show current data
+	let nowDate = new Date().toISOString();
+	nowDate = nowDate.substr(0,10);
+	if (lastDate !== nowDate) {
+	    setHashValue('date', nowDate);	    
+	}
+	lastDate = nowDate;		   
 	$.ajax({
             type: "HEAD",
             async: true,
@@ -331,7 +339,7 @@ function hashchange(evt) {
 	    }
 	    console.log("---------------------");
 	});
-    }, 10000);
+    }, updateInterval);
 
 		});
 	});
