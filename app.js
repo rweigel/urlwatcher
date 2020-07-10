@@ -846,16 +846,19 @@ function test(testName, work) {
 }
 
 function maskEmailAddress(addr) {
-
-	if (!addr || !/@/.test(addr)) {
-		return ""
-	};
-
+    
+    if (!addr) {
+	return ""
+    }
+    addr = addr.split(",");
+    for (let i = 0; i < addr.length; i++) {
 	// username@host => us...@host
-	let tmp = addr.split('@');
+	let tmp = addr[i].split('@');
 	let uname = tmp[0];
 	let host = tmp[1];
-	return uname[0] + uname[1] + '...@' + host
+	addr[i] = uname[0] + uname[1] + '...@' + host;
+    }
+    return addr.join(",")
 }
 
 function email(to, subject, text, cb) {
@@ -898,6 +901,7 @@ function email(to, subject, text, cb) {
 		return;
 	}
 
+    console.log(text);
 	text = text.replace(/\n/g, "<br/>").replace(/ /g, "&nbsp;")
 
 	if (config.app.emailMethod === "sendmail") {
