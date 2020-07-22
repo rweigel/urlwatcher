@@ -48,6 +48,10 @@ npm test
 
 # TODO:
 
+1. [https://stackoverflow.com/questions/29032050/can-i-prevent-forever-from-restarting-my-node-script-in-certain-cases](Graceful) shutdown with forever 
+1. Catch address in use
+1. Replace slashes in test ID with hyphens
+1. Reload metadata if changed
 1. https://stackoverflow.com/a/39128820
 1. Option to write work files - these files take up a lot of space. Perhaps exclude body or when fail save lastBodyPass and currentBody?
 2. Try using HighCharts instead of Plotly. Plotly wraps for d3.js and it omits many important parts (see comments in code). Plotly/d3.js uses SVG and much effort would be needed to improve speed (see https://blog.scottlogic.com/2014/09/19/d3-svg-chart-performance.html). (However, try using Plot.ly's ScatterGL; would need to switch to lines - see html/scattergl for possible fix to speed issue). Could also implement something like http://datashader.org/index.html). HighCharts uses HTML Canvas and has many speed optimizations, better documentation, more options, is free for academic use, and robust development group. Others that use canvas are Flot, CanvasJS, RGraph, http://smoothiecharts.org/. Also consider https://mango-is.com/blog/engineering/pre-render-d3-js-charts-at-server-side/ and https://community.plot.ly/t/how-to-perform-server-side-manipulation-using-plotly-js/1077/6.
