@@ -923,6 +923,14 @@ function email(to, subject, text, cb) {
         console.log(text);
 	text = text.replace(/\n/g, "<br/>").replace(/ /g, "&nbsp;")
 
+    if (to === "!!!!") {
+	console.log('email(): Invalid email address of ' + to + ". Not sending email.");
+	if (cb) {
+	    cb();
+	}
+	return;
+    }
+
 	if (config.app.emailMethod === "sendmail") {
 		sendmail({
 			from: config.sendmail.from,
