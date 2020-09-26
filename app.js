@@ -326,7 +326,7 @@ function report(testName, work) {
 	if (!fs.existsSync(work.entryFile)) {
 		// Write header if first entry
 		fs.appendFileSync(work.entryFile,
-							"Date,status,ttfb,dl,total,size,fails\n", 'utf8');
+				  "Date,status,ttfb,dl,total,size,fails\n", 'utf8');
 	}
 	fs.appendFileSync(work.entryFile, entry, 'utf8');
 
@@ -349,7 +349,8 @@ function report(testName, work) {
             delete workClone.body;
         }
 
-    const inodeMin = 100;
+    // TODO: Should also do tests before creating or appending to entry file above.
+    const inodeMin = 1000;
     const diskMin = 10000000;
     let inodesNums = [-1,-1];
     let inodeMsg = "";
@@ -361,7 +362,7 @@ function report(testName, work) {
 	// or disk space?
 	inodeNums = checkInodes(__dirname);
 	inodeMsg = "inodes Free:  " + inodeNums[1] + "\n"
-	         + "inodes Avail: " + inodeNums[0] + " < " + inodeMin + "\n";
+	         + "inodes Avail: " + inodeNums[0] + " (min = " + inodeMin + ")\n";
     }
 
     checkDiskSpace(__dirname).then((diskSpace) => {
@@ -373,7 +374,7 @@ function report(testName, work) {
 		  + " at "
 		  + (new Date()).toISOString()
 		  ,
-		    "Disk Free:    " + diskSpace.free + " < " + diskMin + "\n" 
+		    "Disk Free:    " + diskSpace.free + " (min = " + diskMin + ")\n" 
 		  + "Disk Size:    " + diskSpace.size + "\n"
 		  + inodeMsg
 		  + "Will not write result file.");
