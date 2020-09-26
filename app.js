@@ -1,10 +1,11 @@
 const request = require("request");
 const fs = require("fs");
 const os = require('os');
-var prettyHtml = require('json-pretty-html').default;
+const prettyHtml = require('json-pretty-html').default;
 const sendmail = require('sendmail')();
 const nodemailer = require('nodemailer');
-var sver = require('semver');
+const sver = require('semver');
+const checkDiskSpace = require('check-disk-space');
 
 // Node 10 has native support for recursive directory creation.
 var mkdirp = require('mkdirp'); 
@@ -34,6 +35,7 @@ process.on('exit', function () {
 	console.log("main(): process.on('exit') called.");
 	shutdown();
 })
+
 
 process.on('SIGINT', function () {
 	console.log("main(): process.on('SIGINT') called.");
@@ -347,21 +349,38 @@ function report(testName, work) {
             delete workClone.body;
         }
 
+    const inodeMin = 100;
+    const diskMin = 10000000;
+    let inodesNums = [-1,-1];
+    let inodeMsg = "";
+    let iswin32 = false;
+    if (process.platform !== 'win32') {
+	iswin32 = true;
+	// TODO: Make async. Don't bother checking if last 10 checks were OK?
+	// Better to catch out of disk space error and then report if issue is inode
+	// or disk space?
+	inodeNums = checkInodes(__dirname);
+	inodeMsg = "inodes Free:  " + inodeNums[1] + "\n"
+	         + "inodes Avail: " + inodeNums[0] + " < " + inodeMin + "\n";
+    }
 
-    const checkDiskSpace = require('check-disk-space')
     checkDiskSpace(__dirname).then((diskSpace) => {
-	if (diskSpace.free < 10000000) {
+	// TODO: Don't bother checking if last 10 checks were OK?
+	if (diskSpace.free < diskMin || (iswin32 && inodeNums[1] < inodeMin)) {
 	    email(config.app.emailStatusTo, 
-		  "URLWatcher low disk space on " 
+		  "URLWatcher low disk resources on " 
 		  + config.app.hostname 
 		  + " at "
 		  + (new Date()).toISOString()
 		  ,
-		  "Free: " + diskSpace.free + "\n" + "Size: " + diskSpace.size + "\nWill not write result file.");
+		    "Disk Free:    " + diskSpace.free + " < " + diskMin + "\n" 
+		  + "Disk Size:    " + diskSpace.size + "\n"
+		  + inodeMsg
+		  + "Will not write result file.");
 	} else {
 	    fs.writeFileSync(work.workFile, JSON.stringify(workClone, null, 4));
 	}
-    })
+    });
 
 	// Re-read test file.
 	try {
@@ -890,7 +909,7 @@ function email(to, subject, text, cb) {
 	}
 
 	if (!text) {
-		text = subject;
+	    text = subject;
 	}
 
 	if (!config.app.emailMethod) {
@@ -901,7 +920,7 @@ function email(to, subject, text, cb) {
 		return;
 	}
 
-    console.log(text);
+        console.log(text);
 	text = text.replace(/\n/g, "<br/>").replace(/ /g, "&nbsp;")
 
 	if (config.app.emailMethod === "sendmail") {
@@ -983,4 +1002,23 @@ function shutdown() {
 		process.exit(0);
 	}
 }
- 
+
+function checkInodes(dir) {
+
+    var stdout = require('child_process').execSync('df -iPk ' + dir).toString();
+    // Based on
+    // https://github.com/adriano-di-giovanni/node-df/blob/master/lib/parse.js
+    cols = stdout
+	.trim()
+	.split(/\r|\n|\r\n/) // split into rows
+	.slice(1) // strip column headers away
+	.map(function(row) {
+            var columns = row
+		.replace(/\s+(\d+)/g, '\t$1')
+		.replace(/\s+\//g, '\t/')
+		.split(/\t/);
+	    return columns;
+	});
+    return [parseInt(cols[0][1]), parseInt(cols[0][3])];
+
+} 
