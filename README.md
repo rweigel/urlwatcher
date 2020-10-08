@@ -48,6 +48,7 @@ npm test
 
 # TODO:
 
+1. If no connection, check if connection can be made to say google.com. If yes then send error message. At present all connection errors are assumed to be due to urlwatcher server not being connected.
 1. [https://stackoverflow.com/questions/29032050/can-i-prevent-forever-from-restarting-my-node-script-in-certain-cases](Graceful) shutdown with forever 
 1. Catch address in use
 1. Replace slashes in test ID with hyphens
