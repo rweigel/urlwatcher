@@ -15,6 +15,8 @@ const crypto = require("crypto");
 
 const dns = require('dns');
 
+var app = {'lastEmail': false};
+
 if (0) {
 	dns.lookup('iana.org', (err, address, family) => {
 	  console.log('address: %j family: IPv%s', address, family);
@@ -350,7 +352,7 @@ function report(testName, work) {
         }
 
     // TODO: Should also do tests before creating or appending to entry file above.
-    const inodeMin = 1000;
+    const inodeMin = 50000; // Change to percent?
     const diskMin = 10000000;
     let inodesNums = [-1,-1];
     let inodeMsg = "";
@@ -367,18 +369,32 @@ function report(testName, work) {
 
     checkDiskSpace(__dirname).then((diskSpace) => {
 	// TODO: Don't bother checking if last 10 checks were OK?
+	// Send only once per day
+	// Send when fixed
 	if (diskSpace.free < diskMin || (iswin32 && inodeNums[1] < inodeMin)) {
-	    email(config.app.emailStatusTo, 
-		  "URLWatcher low disk resources on " 
-		  + config.app.hostname 
-		  + " at "
-		  + (new Date()).toISOString()
-		  ,
-		    "Disk Free:    " + diskSpace.free + " (min = " + diskMin + ")\n" 
-		  + "Disk Size:    " + diskSpace.size + "\n"
-		  + inodeMsg
-		  + "Will not write result file.");
+	    if (app['lastEmail'] == false) {
+		app['lastEmail'] = true;
+		console.log("Sending low disk email");
+		email(config.app.emailStatusTo, 
+		      "URLWatcher low disk resources on " 
+		      + config.app.hostname 
+		      + " at "
+		      + (new Date()).toISOString()
+		      ,
+		      "Disk Free:    " + diskSpace.free + " (min = " + diskMin + ")\n" 
+		      + "Disk Size:    " + diskSpace.size + "\n"
+		      + inodeMsg
+		      + "Will not write result file.");
+	    } else {
+		console.log("Not sending low disk email");
+	    }
 	} else {
+	    console.log("No disk issue");
+	    if (app['lastEmail'] == true) {
+		app['lastEmail'] = false;
+		console.log("Disk issue fixed");
+		// TODO: Send email that problem fixed
+	    }
 	    fs.writeFileSync(work.workFile, JSON.stringify(workClone, null, 4));
 	}
     });
