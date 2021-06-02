@@ -2,6 +2,7 @@
   "name": "urlwatcher",
   "version": "0.0.1",
   "dependencies": {
+    "check-disk-space": "^2.1.0",
     "crypto": "^1.0.1",
     "emailjs": "^2.2.0",
     "express": "^4.17.1",
@@ -12,8 +13,7 @@
     "request": "^2.88.0",
     "semver": "^6.2.0",
     "sendmail": "^1.4.1",
-    "serve-index": "^1.9.1",
-    "check-disk-space": "^2.1.0"
+    "serve-index": "^1.9.1"
   },
   "scripts": {
     "test": "bash test/test.sh",
