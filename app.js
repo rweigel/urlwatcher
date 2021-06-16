@@ -52,10 +52,12 @@ process.on('uncaughtException', function(err) {
 	console.log('main(): Uncaught exception: ');
 	console.log(err);
 	if (config.app.emailStatus) {
-		email(config.app.emailStatusTo, "URLWatcher exception on " 
-			+ config.app.hostname 
-			+ " at " 
-			+ (new Date()).toISOString(), err);
+		email(config.app.emailStatusTo
+				, "URLWatcher exception on " 
+					+ config.app.hostname 
+					+ " at " 
+					+ (new Date()).toISOString()
+				, err);
 		console.log('main(): Sent email to ' + config.app.emailStatusTo);
 	} else {		
 		console.log('main(): Not sending email b/c emailStatus = false.');
@@ -68,14 +70,16 @@ if (config.app.emailStatus) {
 	console.log("main(): Sent start-up message to " 
 									+ config.app.emailStatusTo);	
 	let html = prettyHtml(urlTests);
-	email(config.app.emailStatusTo, 
+	email(config.app.emailStatusTo
+			, 
 				"URLWatcher started on " 
 				+ config.app.hostname 
 				+ " at "
 				+ (new Date()).toISOString()
 			,
-				"View results at " + config.app.publicHTML,
-				+ "<br/>Configuration:<br/>" + html);
+				"View results at " + config.app.publicHTML
+			+
+				"<br/>Configuration:<br/>" + html);
 } else {
 	console.log("main(): Not sending application start/stop messages"
 				+ " b/c config.app.emailStatus = false.");
@@ -903,7 +907,7 @@ function email(to, subject, text, cb) {
 		// Only writes emails sent about tests, not start/stop messages.
 		// TODO: Write system messages.
 		// TODO: Handle email send failure.
-		work = to;
+		let work = to;
 		cb = subject;
 		to = work.emailTo;
 		subject = work.emailSubject;
@@ -937,15 +941,15 @@ function email(to, subject, text, cb) {
 		return;
 	}
 
-        console.log(text);
+    //console.log(text);
 	text = text.replace(/\n/g, "<br/>").replace(/ /g, "&nbsp;")
 
     if (to === "!!!!") {
-	console.log('email(): Invalid email address of ' + to + ". Not sending email.");
-	if (cb) {
-	    cb();
-	}
-	return;
+		console.log('email(): Invalid email address of ' + to + ". Not sending email.");
+		if (cb) {
+			cb();
+		}
+		return;
     }
 
 	if (config.app.emailMethod === "sendmail") {
@@ -960,11 +964,10 @@ function email(to, subject, text, cb) {
 				console.log(err);  		
 			} else {
 				console.log('email(): Email sent. Reply:')
-				console.dir(reply);
-				if (cb) {
-					console.log("email(): Executing callback.")
-					cb();
-				}
+			}
+			if (cb) {
+				console.log("email(): Executing callback.")
+				cb();
 			}
 		});
 	}
@@ -996,10 +999,10 @@ function email(to, subject, text, cb) {
 			else {
 				//console.log("Email send response:");
 				//console.log(info);
-				if (cb) {
-					console.log("email(): Executing callback.")
-					cb();
-				}
+			}
+			if (cb) {
+				console.log("email(): Executing callback.")
+				cb();
 			}
 		});
 	}
