@@ -1,12 +1,19 @@
+# sudo cp urlwatcher.service /lib/systemd/system
+# sudo chmod 644 /lib/systemd/system/urlwatcher.service
+# sudo systemctl start urlwatcher
+# sudo systemctl status urlwatcher
+# sudo systemctl enable urlwatcher
+
+
 [Unit]
-Description=urlwather
+Description=urlwatcher
 Documentation=https://github.com/rweigel/urlwatcher
 
 [Service]
 Type=simple
 User=ubuntu
 WorkingDirectory=/home/ubuntu/urlwatcher
-ExecStart=/home/ubuntu/.nvm/versions/node/v16.2.0/bin/node app.js private/app-config.json 2>&1 | logger -t urlwatcher
+ExecStart=/home/ubuntu/.nvm/versions/node/v16.2.0/bin/node app.js private/app-config.json 2>&1
 Restart=on-failure
 
 [Install]

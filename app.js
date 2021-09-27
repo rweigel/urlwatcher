@@ -55,7 +55,7 @@ process.on('uncaughtException', function(err) {
 		email(config.app.emailStatusTo, "URLWatcher exception on " 
 			+ config.app.hostname 
 			+ " at " 
-			+ (new Date()).toISOString(), err);
+			+ (new Date()).toISOString(), err.message);
 		console.log('main(): Sent email to ' + config.app.emailStatusTo);
 	} else {		
 		console.log('main(): Not sending email b/c emailStatus = false.');
@@ -903,8 +903,8 @@ function email(to, subject, text, cb) {
 		// Only writes emails sent about tests, not start/stop messages.
 		// TODO: Write system messages.
 		// TODO: Handle email send failure.
-		work = to;
-		cb = subject;
+		let work = to;
+		//let cb = subject;
 		to = work.emailTo;
 		subject = work.emailSubject;
 		text = work.emailBody || work.emailSubject;
@@ -937,8 +937,7 @@ function email(to, subject, text, cb) {
 		return;
 	}
 
-        console.log(text);
-	text = text.replace(/\n/g, "<br/>").replace(/ /g, "&nbsp;")
+    text = text.replace(/\n/g, "<br/>").replace(/ /g, "&nbsp;")
 
     if (to === "!!!!") {
 	console.log('email(): Invalid email address of ' + to + ". Not sending email.");
@@ -961,10 +960,10 @@ function email(to, subject, text, cb) {
 			} else {
 				console.log('email(): Email sent. Reply:')
 				console.dir(reply);
-				if (cb) {
-					console.log("email(): Executing callback.")
-					cb();
-				}
+			}
+		    if (cb) {
+				console.log("email(): Executing callback.")
+				cb();
 			}
 		});
 	}
@@ -996,10 +995,10 @@ function email(to, subject, text, cb) {
 			else {
 				//console.log("Email send response:");
 				//console.log(info);
-				if (cb) {
-					console.log("email(): Executing callback.")
-					cb();
-				}
+			}
+			if (cb) {
+				console.log("email(): Executing callback.")
+				cb();
 			}
 		});
 	}
