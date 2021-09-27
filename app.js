@@ -68,14 +68,16 @@ if (config.app.emailStatus) {
 	console.log("main(): Sent start-up message to " 
 									+ config.app.emailStatusTo);	
 	let html = prettyHtml(urlTests);
-	email(config.app.emailStatusTo, 
+	email(config.app.emailStatusTo
+			, 
 				"URLWatcher started on " 
 				+ config.app.hostname 
 				+ " at "
 				+ (new Date()).toISOString()
 			,
-				"View results at " + config.app.publicHTML,
-				+ "<br/>Configuration:<br/>" + html);
+				"View results at " + config.app.publicHTML
+			+
+				"<br/>Configuration:<br/>" + html);
 } else {
 	console.log("main(): Not sending application start/stop messages"
 				+ " b/c config.app.emailStatus = false.");
@@ -904,7 +906,7 @@ function email(to, subject, text, cb) {
 		// TODO: Write system messages.
 		// TODO: Handle email send failure.
 		let work = to;
-		//let cb = subject;
+		cb = subject;
 		to = work.emailTo;
 		subject = work.emailSubject;
 		text = work.emailBody || work.emailSubject;
@@ -940,11 +942,11 @@ function email(to, subject, text, cb) {
     text = text.replace(/\n/g, "<br/>").replace(/ /g, "&nbsp;")
 
     if (to === "!!!!") {
-	console.log('email(): Invalid email address of ' + to + ". Not sending email.");
-	if (cb) {
-	    cb();
-	}
-	return;
+		console.log('email(): Invalid email address of ' + to + ". Not sending email.");
+		if (cb) {
+			cb();
+		}
+		return;
     }
 
 	if (config.app.emailMethod === "sendmail") {
@@ -959,9 +961,8 @@ function email(to, subject, text, cb) {
 				console.log(err);  		
 			} else {
 				console.log('email(): Email sent. Reply:')
-				console.dir(reply);
 			}
-		    if (cb) {
+			if (cb) {
 				console.log("email(): Executing callback.")
 				cb();
 			}
