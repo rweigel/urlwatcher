@@ -21,7 +21,7 @@
 		"hostname": "",
 
 		"__comment": "Location of file with tests for app to run. Path is relative to location of app.js",
-		"urlTestsFile": "tests/example.json",
+		"urlTestsFile": "conf/example.json",
 
 		"__comment": "The app starts a web server on this port that serves files in the html and log directories.",
 		"serverPort": 4444,
