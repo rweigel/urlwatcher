@@ -376,7 +376,7 @@ function report(testName, work) {
 	if (diskSpace.free < diskMin || (iswin32 && inodeNums[1] < inodeMin)) {
 	    if (app['lastEmail'] == false) {
 		app['lastEmail'] = true;
-		console.log("Sending low disk email");
+		console.log("report(): Sending low disk email");
 		email(config.app.emailStatusTo, 
 		      "URLWatcher low disk resources on " 
 		      + config.app.hostname 
@@ -388,13 +388,13 @@ function report(testName, work) {
 		      + inodeMsg
 		      + "Will not write result file.");
 	    } else {
-		console.log("Not sending low disk email");
+		console.log("report(): Not sending low disk email");
 	    }
 	} else {
-	    console.log("No disk issue");
+	    console.log("report(): No disk issue");
 	    if (app['lastEmail'] == true) {
 		app['lastEmail'] = false;
-		console.log("Disk issue fixed");
+		console.log("report(): Disk issue fixed");
 		// TODO: Send email that problem fixed
 	    }
 	    fs.writeFileSync(work.workFile, JSON.stringify(workClone, null, 4));
