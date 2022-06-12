@@ -10,6 +10,7 @@
 		"emailThreshold": 1,
 
 		"__comment": "'sendmail' (use if able to send emails from local system) or 'nodemailer' (send using external system)",
+		"__comment": "Use '' or false if no emails are desired (only response files will be created).",
 		"emailMethod": "sendmail",
 
 		"debug": true,
