@@ -13,8 +13,8 @@ Documentation=https://github.com/rweigel/urlwatcher
 Type=simple
 User=ubuntu
 WorkingDirectory=/home/ubuntu/urlwatcher
-ExecStart=/home/ubuntu/.nvm/versions/node/v16.2.0/bin/node app.js private/app-config.json 2>&1
-Restart=on-failure
+ExecStart=/usr/bin/sh -c etc/urlwatcher.sh
+Restart=always
 
 [Install]
 WantedBy=multi-user.target
