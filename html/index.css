@@ -31,7 +31,6 @@ a:visited {
 }
 
 #testDropdown, #displayDropdown, #logDirectory, #testSettings, #testDataSpan {
-    display: none;
 }
 
 #help {

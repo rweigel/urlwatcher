@@ -40,9 +40,8 @@ function plot(logFile, test, cb) {
 
 		let id = URLWatcher['lastClicked'];
 
-		console.log("relayoutevent(): Relayout event due to interaction on "
-					+ id + ". Event data:");
-		console.log(eventdata);
+		//console.log("relayoutevent(): Relayout event due to interaction on " + id + ". Event data:");
+		//console.log(eventdata);
 
 		let gd = document.getElementById(id);
 

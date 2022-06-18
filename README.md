@@ -5,7 +5,7 @@ git clone https://github.com/rweigel/urlwatcher
 npm install
 ```
 
-Make sure that you can get either [`nodemailer.js`](test/email/nodemailer.js) or [`sendmail.js`](test/email/sendmail.js) to work. Edit the files to include credentials and then execute with `node`.
+Get either [`nodemailer.js`](test/email/nodemailer.js) or [`sendmail.js`](test/email/sendmail.js) to work. Edit the files to include credentials and then execute with `node`. 
 
 # Configure
 
@@ -19,7 +19,7 @@ The two configuration files mentioned below have comments that describe the opti
 Tested on Node 6-16.
 
 ```
-node app.js conf/app-config.json
+node urlwatcher.js
 ```
 
 # Test

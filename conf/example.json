@@ -9,7 +9,7 @@
 		"emailAlertsTo": "!!!!",
 
 		"__comment": "The URL to test",
-		"url": "http://localhost:4444/html/example.",
+		"url": "http://localhost:4444/",
 
 		"__comment": "Time interval between tests in milliseconds",
 		"interval": 60000,
@@ -35,7 +35,7 @@
 			"total": 5,
 
 			"__comment": "Error triggered if body does not match RegExp(bodyRegExp[0], bodyRegExp[1])",
-			"bodyRegExp": ["testing123",""]
+			"bodyRegExp": ["plots",""]
 		}
 	}
 }

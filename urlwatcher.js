@@ -1,74 +1,65 @@
-const request = require("request");
 const fs = require("fs");
 const os = require('os');
-const prettyHtml = require('json-pretty-html').default;
-const sendmail = require('sendmail')();
-const nodemailer = require('nodemailer');
-const sver = require('semver');
-const checkDiskSpace = require('check-disk-space');
-const crypto = require("crypto");
 
-// Node 10 has native support for recursive directory creation.
-var mkdirp = require('mkdirp'); 
+const request     = require("request");
+const prettyHtml  = require('json-pretty-html').default;
+const sendmail    = require('sendmail')();
+const nodemailer  = require('nodemailer');
+const chkDskSpace = require('check-disk-space');
+const crypto      = require("crypto");
+const mkdirp      = require('mkdirp'); // Node 10 has native support for recursive directory creation.
+const clc         = require('chalk');
+const yargs       = require('yargs');
 
-if (!sver.gte(process.version,'6.0.0')) {
-  console.log("node.js version >= 6 required. node.js -v returns " + process.version);
+const ver  = parseInt(process.version.slice(1).split('.')[0]);
+if (ver < 6) {
+  let msg = "node.js version >= 6 required. Version " + process.version + " is being used.";
+  log(msg, 'error');
   process.exit(1);
 }
 
-process.on('exit', function () {
-  console.log("main(): process.on('exit') called.");
-  shutdown();
-})
-process.on('SIGINT', function () {
-  console.log("main(): process.on('SIGINT') called.");
-  shutdown();
-})
+let app = {'lastEmail': false};
 
-var app = {'lastEmail': false};
+let argv = yargs
+              .strict()
+              .help()
+              .describe('port','Server port')
+              .alias('port','p')
+              .describe('conf','Server configuration file')
+              .alias('conf','c')
+              .default({
+                'port': 4444,
+                'conf': __dirname + '/conf/app-config.json'
+              })
+              .argv;
 
-let config = readConfig(process.argv[2] || __dirname + "conf/app-config.json");
+let config = readConfig(argv.conf || __dirname + "/conf/app-config.json");
+
+if (argv.port && config.app.serverPort) {
+  log("Port given on command line and in config file. Using command line value.",'warning');
+  config.app.serverPort = argv.port;
+}
+
+exceptions(config);
 
 config.app.hostname = config.app.hostname || os.hostname();
-
-process.on('uncaughtException', function(err) {
-  console.log('main(): Uncaught exception: ');
-  console.log(err);
-  if (config.app.emailStatus) {
-    email(config.app.emailStatusTo, "URLWatcher exception on " 
-      + config.app.hostname 
-      + " at " 
-      + (new Date()).toISOString(), err.message);
-    console.log('main(): Sent email to ' + config.app.emailStatusTo);
-  } else {    
-    console.log('main(): Not sending email b/c emailStatus = false.');
-  }
-})
 
 let urlTests = readTests();
 
 if (config.app.emailStatus) {
-  console.log("main(): Sent start-up message to " + config.app.emailStatusTo);  
+  log("Sending start-up message to " + config.app.emailStatusTo);  
   let html = prettyHtml(urlTests);
-  email(config.app.emailStatusTo
-      , 
-        "URLWatcher started on " 
-        + config.app.hostname 
-        + " at "
-        + (new Date()).toISOString()
-      ,
-        "View results at " + config.app.publicHTML
-      +
-        "<br/>Configuration:<br/>" + html);
+  let title = "URLWatcher started on " + config.app.hostname + " at " + (new Date()).toISOString();
+  let body = "View results at " + config.app.publicHTML + "<br/>Configuration:<br/>" + html;
+  email(config.app.emailStatusTo, title, body);
 } else {
-  console.log("main(): Not sending application start/stop messages"
-        + " b/c config.app.emailStatus = false.");
+  log("Not sending application start/stop messages" + " b/c config.app.emailStatus = false.");
 }
 
 for (let testName in urlTests) {
 
   // Prepare configuration file with masked email address
-  let settingsDir = __dirname + "/log/" + testName;
+  let settingsDir = config.app.logDirectory + "/" + testName;
   let settingsFile = settingsDir + "/settings.json";
   if (!fs.existsSync(settingsDir)) {
     mkdirp.sync(settingsDir);
@@ -80,16 +71,15 @@ for (let testName in urlTests) {
   urlTests[testName]["emailAlertsTo"] = maskEmailAddress(fullEmail)
 
   // Write configuration file to web-accessible directory
-  fs.writeFile(settingsFile, JSON
-            .stringify(urlTests[testName], null, 4), 
-            (err) => {
-              if (err) {
-                console.log(err);
-              } else {
-                console.log("main(): Wrote " 
-                  + settingsFile.replace(__dirname + "/", ""));
-              }
-            });
+  let msg = JSON.stringify(urlTests[testName], null, 4);
+  fs.writeFile(settingsFile, msg,
+              (err) => {
+                  if (err) {
+                    log(err,'error');
+                  } else {
+                    log("Wrote " + settingsFile.replace(__dirname + "/", ""));
+                  }
+              });
 
   // Reset email address.
   urlTests[testName]["emailAlertsTo"] = fullEmail;
@@ -98,24 +88,22 @@ for (let testName in urlTests) {
   urlTests[testName].results = [];
 
   // Start test process
-  console.log("main(): Starting first test for " + testName);
+  log("Starting first test for " + testName);
   geturl(testName);
 }
 
-// Start server for serving log files
+// Start server for serving log files and plots.
 server();
 
 function readConfig(configFile) {
   // Read configuration file
-  configFile = process.argv[2] || "app-config.json"
-  configFile = __dirname + "/" + configFile;
   if (fs.existsSync(configFile)) {
     let tmp = fs.readFileSync(configFile);
     var config = JSON.parse(tmp);
-    console.log("readConfig(): Read " + configFile);
+    log("Read " + configFile);
   } else {
     // Allow app to start even if email configuration file not found.
-    console.log("readConfig(): File " + configFile + " not found. Exiting.");
+    log("File " + configFile + " not found. Exiting.", 'error');
     process.exit(1);
   }
 
@@ -124,7 +112,7 @@ function readConfig(configFile) {
   }
   let emailMethods = [null, "sendmail", "nodemailer"];
   if (!emailMethods.includes(config.app.emailMethod)) {
-    console.error("readConfig(): config.app.emailMethod must be one of: " + emailMethods.join(","))
+    log("readConfig(): config.app.emailMethod must be one of: " + emailMethods.join(","), 'error');
     process.exit(1);
   }
 
@@ -132,8 +120,7 @@ function readConfig(configFile) {
   config.app.logDirectory = __dirname + "/" + config.app.logDirectory;
   if (!fs.existsSync(config.app.logDirectory)) {
     mkdirp.sync(config.app.logDirectory);
-    console.log("readConfig(): Created log directory " 
-          + config.app.logDirectory)
+    log("Created log directory " + config.app.logDirectory);
   }
   return config;
 }
@@ -148,12 +135,12 @@ function readTests() {
     try {
       urlTests = JSON.parse(tmp);
     } catch (e) {
-      console.log("Could not JSON parse " + urlTestsFile + ". Exiting.");
+      log("Could not JSON parse " + urlTestsFile + ". Exiting.",'error');
       process.exit(1);        
     }
-    console.log("readTests(): Read " + urlTestsFile);
+    log("Read " + urlTestsFile);
   } else {
-    console.log("readTests(): File " + urlTestsFile + " not found. Exiting.");  
+    log("File " + urlTestsFile + " not found. Exiting.",'error');
     process.exit(1);  
   }
 
@@ -163,30 +150,37 @@ function readTests() {
   for (let testName in urlTests) {
     if (typeof(urlTests[testName]) === "string") {
       let fname = __dirname + "/" + urlTests[testName];
-      console.log("readTests(): Reading and parsing\n  " + fname);
+      log("Reading and parsing\n  " + fname);
       if (!fs.existsSync(fname)) {
-        console.log("readTests(): File "
-            + fname 
-            + " referenced in "
-            + urlTestsFile
-            + " not found. Exiting.");  
+        let msg = "File " + fname + " referenced in " + urlTestsFile + " not found. Exiting.";
+        log(msg,'error');  
         process.exit(1);        
       }
       let tmp = fs.readFileSync(fname);
       try {
-        urlTests[testName] = JSON.parse(tmp);
+        tmp = JSON.parse(tmp);
       } catch (e) {
-        console.log("Could not JSON parse " + fname + ". Exiting.");
+        log("Could not JSON parse " + fname + ". Exiting.",'error');
         process.exit(1);        
+      }
+
+      delete urlTests[testName];
+      if (Array.isArray(tmp)) {
+        let k = 1;
+        for (let i = 0; i < tmp.length; i++) {
+          if ('testName' in tmp[i]) {
+            urlTests[testName + "/" + tmp[i]['testName']] = tmp[i];
+          } else {
+            urlTests[testName + "/" + k] = tmp[i];
+            k = k + 1;
+          }
+        }
       }
     }
   }
 
   for (let testName in urlTests) {
-    if (Array.isArray(urlTests[testName])) {
-      console.log('Array');
-      continue;
-    }
+
     // Remove documentation nodes
     delete urlTests[testName]["__comment"];
     delete urlTests[testName]["tests"]["__comment"];
@@ -197,7 +191,7 @@ function readTests() {
       let a = urlTests[testName]['emailAlertsTo'];
       let b = urlTests[testName]['emailAlertsTo'] === '!!!!';
       if (!a || b) {
-        console.log("readTests(): emailAlerts = true and emailAlertsTo not given in test " + testName + ". Exiting.");
+        log("emailAlerts = true and emailAlertsTo not given in test " + testName + ". Exiting.",'error');
         process.exit(1);
       }
     }
@@ -212,78 +206,6 @@ function readTests() {
 
   readTests.urlTestsLast = urlTests;
   return urlTests;
-}
-
-function round(t) {
-  return Math.round(10*t)/10
-}
-
-function server() {
-
-    var express = require('express');
-    var serveIndex = require('serve-index');
-    var app = express();
-
-    // The following is a hack to make the links work in a serve-index
-    // directory listing. serve-index always makes links in the
-    // listing relative to the server root, which will not be correct
-    // if this app is behind a reverse proxy.  If the path from which
-    // this app is served on the proxy changes from "/urlwatcher",
-    // this code must be updated. This is the method suggested by
-    // https://github.com/expressjs/serve-index/issues/53
-    app.use(function (req, res, next) {
-  req.originalUrl = "/urlwatcher" + req.url;
-  next()
-    })
-
-  app.use('/log', express.static(__dirname + '/log'));
-  app.use('/html', express.static(__dirname + '/html'));
-        app.use('/log', serveIndex(__dirname + '/log', {icons: true, view: 'details'}));
-        app.use('/html', serveIndex(__dirname + '/html', {icons: true, view: 'details'}));
-
-  app.get('/', function(req, res) {
-    res.sendFile(__dirname + '/html/index.htm');
-  })
-
-  let testNames = Object.keys(urlTests);
-  app.get('/log/tests.json',
-    function(req, res) {
-      res.setHeader("Content-Type", "application/json");
-      res.end(JSON.stringify(testNames));
-  })
-
-  app.get("/log/:testName/log/files.json",
-    function(req, res) {
-      console.log("server(): Request for " 
-                + req.params.testName + "/log/files.json");
-      if (!testNames.includes(req.params.testName)) {
-        res.sendStatus(400);
-        return;
-      }
-      sendfiles(__dirname + '/log/' + req.params.testName + "/log",
-        function(files) {
-          res.setHeader("Content-Type", "application/json");
-          res.end(JSON.stringify(files.reverse()));
-        }
-      );
-  });
-
-  function sendfiles(dir, cb) {
-    const fs = require('fs');
-
-    fs.readdir(dir, (err, files) => {
-      cb(files);
-    })
-  }
-
-  let server = app.listen(config.app.serverPort, function (err) {
-    if (err) {
-      console.log(err);
-      process.exit(1);
-    } else {
-      console.log("server(): Server is listening on port " + config.app.serverPort);
-    }
-  }); 
 }
 
 function report(testName, work) {
@@ -315,12 +237,11 @@ function report(testName, work) {
   }
   if (!fs.existsSync(work.entryFile)) {
     // Write header if first entry
-    fs.appendFileSync(work.entryFile,
-          "Date,status,ttfb,dl,total,size,fails\n", 'utf8');
+    fs.appendFileSync(work.entryFile, "Date,status,ttfb,dl,total,size,fails\n", 'utf8');
   }
   fs.appendFileSync(work.entryFile, entry, 'utf8');
 
-  console.log("report(): Wrote " + testName + " entry: " + entry.trim());
+  log("Wrote '" + testName + "' entry: " + entry.trim());
 
   // Create work directory (named TestName + "requests")
   if (!fs.existsSync(work.workDirectory)) {
@@ -339,59 +260,54 @@ function report(testName, work) {
     delete workClone.body;
   }
 
-    // TODO: Should also do tests before creating or appending to entry file above.
-    const inodeMin = 50000; // Change to percent?
-    const diskMin = 10000000;
-    let inodesNums = [-1,-1];
-    let inodeMsg = "";
-    let iswin32 = false;
-    if (process.platform !== 'win32') {
-  iswin32 = true;
-  // TODO: Make async. Don't bother checking if last 10 checks were OK?
-  // Better to catch out of disk space error and then report if issue is inode
-  // or disk space?
-  inodeNums = checkInodes(__dirname);
-  inodeMsg = "inodes Free:  " + inodeNums[1] + "\n"
-           + "inodes Avail: " + inodeNums[0] + " (min = " + inodeMin + ")\n";
-    }
-
-    checkDiskSpace(__dirname).then((diskSpace) => {
-  // TODO: Don't bother checking if last 10 checks were OK?
-  // Send only once per day
-  // Send when fixed
-  if (diskSpace.free < diskMin || (iswin32 && inodeNums[1] < inodeMin)) {
-      if (app['lastEmail'] == false) {
-    app['lastEmail'] = true;
-    console.log("report(): Sending low disk email");
-    email(config.app.emailStatusTo, 
-          "URLWatcher low disk resources on " 
-          + config.app.hostname 
-          + " at "
-          + (new Date()).toISOString()
-          ,
-          "Disk Free:    " + diskSpace.free + " (min = " + diskMin + ")\n" 
-          + "Disk Size:    " + diskSpace.size + "\n"
-          + inodeMsg
-          + "Will not write result file.");
-      } else {
-    console.log("report(): Not sending low disk email");
-      }
-  } else {
-      //console.log("report(): No disk issue");
-      if (app['lastEmail'] == true) {
-      app['lastEmail'] = false;
-      console.log("report(): Disk issue fixed");
-      // TODO: Send email that problem fixed
-      }
-      fs.writeFileSync(work.workFile, JSON.stringify(workClone, null, 4));
+  // TODO: Should also do tests before creating or appending to entry file above.
+  const inodeMin = 50000; // Change to percent?
+  const diskMin = 10000000;
+  let inodesNums = [-1,-1];
+  let inodeMsg = "";
+  let iswin32 = false;
+  if (process.platform !== 'win32') {
+      iswin32 = true;
+      // TODO: Make async. Don't bother checking if last 10 checks were OK?
+      // Better to catch out of disk space error and then report if issue is inode
+      // or disk space?
+      inodeNums = checkInodes(__dirname);
+      inodeMsg = "inodes Free:  " + inodeNums[1] + "\n"
+               + "inodes Avail: " + inodeNums[0] + " (min = " + inodeMin + ")\n";
   }
-    });
 
-  // Re-read test file.
+  chkDskSpace(__dirname).then((diskSpace) => {
+      // TODO: Don't bother checking if last 10 checks were OK?
+      // Send only once per day
+      // Send when fixed
+      if (diskSpace.free < diskMin || (iswin32 && inodeNums[1] < inodeMin)) {
+        if (app['lastEmail'] == false) {
+          app['lastEmail'] = true;
+          log("report(): Sending low disk email",'error');
+          let title = "URLWatcher low disk resources on " + config.app.hostname + " at " + (new Date()).toISOString();
+          let body =   "Disk Free:    " + diskSpace.free + " (min = " + diskMin + ")\n" 
+                     + "Disk Size:    " + diskSpace.size + "\n"
+                     + inodeMsg
+                     + "Will not write result file.";
+          email(config.app.emailStatusTo, title, body);
+        } else {
+          log("Not sending low disk email; already sent.");
+        }
+      } else {
+        if (app['lastEmail'] == true) {
+          app['lastEmail'] = false;
+          log("Disk issue fixed");
+          // TODO: Send email that problem fixed
+        }
+        fs.writeFileSync(work.workFile, JSON.stringify(workClone, null, 4));
+      }
+  });
+
+  // Re-read test file on each iteration?
   try {
     //urlTests = readTests();
   } catch (e) {
-    console.log("report(): Re-read of tests failed. Using previous tests.")
+    log("report(): Re-read of tests failed. Using previous tests.",'warning');
   }
 
   // Queue next test on testName
@@ -422,9 +338,7 @@ function geturl(testName) {
       "timeout": urlTests[testName].timeout
     };
 
-    console.log('geturl(): ' 
-          + work.requestStartTime.toISOString() 
-          + ' Requesting: ' + url);
+    log(work.requestStartTime.toISOString() + ' Requesting: ' + url);
     request.get(opts, function (error, response, body) {
 
       work.statusCode = undefined;
@@ -437,10 +351,10 @@ function geturl(testName) {
       if (error) {
         if (!work.error) {
           work.error = true;
-          console.log('geturl(): Response error. Calling urlError().');
+          log('Response error. Calling urlError().');
           urlError(error, work);
         } else {
-          console.log('geturl(): Response error; urlError already called.');
+          log('Response error; urlError() already called.');
         }
         return;
       }
@@ -461,10 +375,10 @@ function geturl(testName) {
     .on("error", function (error) {
       if (!work.error) {
         work.error = true;
-        console.log('geturl(): on("error") event. Calling urlError().');
+        log('on("error") event. Calling urlError().');
         urlError(error, work);
       } else {
-        console.log('geturl(): on("error") event; urlError already called.');
+        log('geturl(): on("error") event; urlError already called.');
       }
     })
   } else if (url.match(/^ftp/)) {
@@ -472,9 +386,9 @@ function geturl(testName) {
     var FtpClient  = require("ftp");
     var conn = new FtpClient({host: work.url.split("/")[2]});
     conn.on("error", function (err) {
-      console.log("FTP Error");
-      console.log(err)}
-    );
+      log("FTP Error",'error');
+      log(err,'error');
+    });
     conn.on("connect", function(){
       conn.auth(function(err){
         conn.get(work.url.split("/").slice(3).join("/"), 
@@ -506,9 +420,7 @@ function geturl(testName) {
     })
     .connect();
   } else {
-    console.log("Error.  Protocol" 
-            + url.replace(/^(.*)\:.*/,"$1") 
-            + " is not supported.");
+    log("Protocol" + url.replace(/^(.*)\:.*/,"$1") + " is not supported.",'error');
   } 
 }
 
@@ -530,9 +442,7 @@ function computeDirNames(testName, work) {
 
 function test(testName, work) {
 
-  console.log('test(): ' 
-          + work.requestStartTime.toISOString() 
-          + ' Testing: '+ work.url);
+  log(work.requestStartTime.toISOString() + ' Testing: '+ work.url);
 
   work = computeDirNames(testName, work);
 
@@ -795,7 +705,7 @@ function test(testName, work) {
             + ") is less than " 
             + emailThreshold 
             + ".";
-      console.log("test(): " + reason);
+      log(reason);
       sendFailEmail = false;
       work.emailNotSentReason = reason;     
     }
@@ -807,10 +717,10 @@ function test(testName, work) {
     if (!sendFailEmail) {
       let reason = testName 
             + ": Not sending fail email b/c fail email was last email sent.";
-      console.log("test(): " + reason);
+      log(reason);
       work.emailNotSentReason = reason;
     } else {
-      console.log("test(): Sending fail email.");
+      log("Sending fail email.");
     }
   }
 
@@ -820,10 +730,10 @@ function test(testName, work) {
     if (!sendPassEmail) {
       let reason = testName 
             + ": Not sending pass email b/c fail email was not yet sent.";
-      console.log("test(): " + reason);
+      log(reason);
       work.emailNotSentReason = reason;
     } else {
-      console.log("test(): Sending pass email.");
+      log("Sending pass email.");
     }
   }
 
@@ -871,18 +781,16 @@ function test(testName, work) {
 
 function maskEmailAddress(addr) {
     
-    if (!addr) {
-  return ""
-    }
-    addr = addr.split(",");
-    for (let i = 0; i < addr.length; i++) {
-  // username@host => us...@host
-  let tmp = addr[i].split('@');
-  let uname = tmp[0];
-  let host = tmp[1];
-  addr[i] = uname[0] + uname[1] + '...@' + host;
-    }
-    return addr.join(",")
+  if (!addr) return "";
+  addr = addr.split(",");
+  for (let i = 0; i < addr.length; i++) {
+    // username@host => us...@host
+    let tmp = addr[i].split('@');
+    let uname = tmp[0];
+    let host = tmp[1];
+    addr[i] = uname[0] + uname[1] + '...@' + host;
+  }
+  return addr.join(",")
 }
 
 function email(to, subject, text, cb) {
@@ -897,20 +805,20 @@ function email(to, subject, text, cb) {
     subject = work.emailSubject;
     text = work.emailBody || work.emailSubject;
     let email = "To: " + maskEmailAddress(to) + "\n"
-          + "Subject: " + subject + "\n"
-          + "Body:\n"
-          + "  " + text.replace(/\n/g,'\n  ');
+                + "Subject: " + subject + "\n"
+                + "Body:\n"
+                + "  " + text.replace(/\n/g,'\n  ');
 
     if (!fs.existsSync(work.emailDirectory)) {
       mkdirp.sync(work.emailDirectory);
     }
-    console.log('email(): Writing ' + work.emailFile.replace(__dirname + "/",""));  
+    log('Writing ' + work.emailFile.replace(__dirname + "/",""));  
     fs.writeFileSync(work.emailFile, email);
 
-    console.log('email(): Email to be sent:')
-    console.log("------------------------------------------------------------------");
-    console.log(email);
-    console.log("------------------------------------------------------------------");    
+    log("Email to be sent:\n\n"
+        + "--------------------------------------------------------\n"
+        + email 
+        + "\n--------------------------------------------------------\n");
   }
 
   if (!text) {
@@ -918,22 +826,22 @@ function email(to, subject, text, cb) {
   }
 
   if (!config.app.emailMethod) {
-    console.log('email(): config.app.emailMethod not specified. Not sending email.')
+    log('config.app.emailMethod not specified. Not sending email.')
     if (cb) {
       cb();
     }
     return;
   }
 
-    text = text.replace(/\n/g, "<br/>").replace(/ /g, "&nbsp;")
+  text = text.replace(/\n/g, "<br/>").replace(/ /g, "&nbsp;")
 
-    if (to === "!!!!") {
-    console.log('email(): Invalid email address of ' + to + ". Not sending email.");
-    if (cb) {
-      cb();
-    }
+  if (to === "!!!!") {
+  log('Invalid email address of ' + to + ". Not sending email.",'warning');
+  if (cb) {
+    cb();
+  }
     return;
-    }
+  }
 
   if (config.app.emailMethod === "sendmail") {
     sendmail({
@@ -943,13 +851,13 @@ function email(to, subject, text, cb) {
       html: text,
     }, function(err, reply) {
       if (err) {
-        console.log('email(): Error when attempting to send email:')
-        console.log(err);     
+        log('Error when attempting to send email:')
+        log(err);     
       } else {
-        console.log('email(): Email sent. Reply:')
+        log('Email sent. Reply:')
       }
       if (cb) {
-        console.log("email(): Executing callback.")
+        log("Executing callback.")
         cb();
       }
     });
@@ -976,15 +884,15 @@ function email(to, subject, text, cb) {
 
     transporter.sendMail(mailOptions, function (err, info) {
       if (err) {
-        console.log("email(): Error while attempting to send email:");
-        console.log(err)
+        log("email(): Error while attempting to send email:");
+        log(err)
       }
       else {
         //console.log("Email send response:");
         //console.log(info);
       }
       if (cb) {
-        console.log("email(): Executing callback.")
+        log("email(): Executing callback.")
         cb();
       }
     });
@@ -992,7 +900,7 @@ function email(to, subject, text, cb) {
 }
 
 function shutdown() {
-  console.log('shutdown(): Shutdown called.')
+  log('Shutdown called.')
   if (shutdown.called == true) {
     return;
   }
@@ -1000,7 +908,7 @@ function shutdown() {
     shutdown.called = true;
   }
   if (config.app.emailStatus) {
-    console.log('shutdown(): Sending stop email.');
+    log('Sending stop email.');
     // TODO: Not working. See old URLWatch code, which worked.
     let subj = "URLWatcher stopped on " 
             + config.app.hostname 
@@ -1009,26 +917,137 @@ function shutdown() {
 
     email(config.app.emailStatusTo, subj, "", () => {process.exit(0);});
   } else {
-    console.log("shutdown(): Not sending stop message b/c emailStatus = false.");
+    log("Not sending stop message b/c emailStatus = false.");
     process.exit(0);
   }
 }
 
 function checkInodes(dir) {
 
-    var stdout = require('child_process').execSync('df -iPk ' + dir).toString();
+    let stdout = require('child_process').execSync('df -iPk ' + dir).toString();
     // Based on
     // https://github.com/adriano-di-giovanni/node-df/blob/master/lib/parse.js
-    cols = stdout
-  .trim()
-  .split(/\r|\n|\r\n/) // split into rows
-  .slice(1) // strip column headers away
-  .map(function(row) {
-            var columns = row
-    .replace(/\s+(\d+)/g, '\t$1')
-    .replace(/\s+\//g, '\t/')
-    .split(/\t/);
-      return columns;
-  });
+    let cols = stdout
+                .trim()
+                .split(/\r|\n|\r\n/) // split into rows
+                .slice(1) // strip column headers away
+                .map(function(row) {
+                          var columns = row
+                  .replace(/\s+(\d+)/g, '\t$1')
+                  .replace(/\s+\//g, '\t/')
+                  .split(/\t/);
+                    return columns;
+                });
     return [parseInt(cols[0][1]), parseInt(cols[0][3])];
 } 
+
+function server() {
+
+  var express = require('express');
+  var serveIndex = require('serve-index');
+  var app = express();
+
+  // The following is a hack to make the links work in a serve-index
+  // directory listing. serve-index always makes links in the
+  // listing relative to the server root, which will not be correct
+  // if this app is behind a reverse proxy.  If the path from which
+  // this app is served on the proxy changes from "/urlwatcher",
+  // this code must be updated. This is the method suggested by
+  // https://github.com/expressjs/serve-index/issues/53
+  app.use(function (req, res, next) {
+    req.originalUrl = "/urlwatcher" + req.url;
+    next();
+  })
+
+  app.use('/log', express.static(config.app.logDirectory));
+  app.use('/html', express.static(__dirname + '/html'));
+  app.use('/log', serveIndex(config.app.logDirectory, {icons: true, view: 'details'}));
+  app.use('/html', serveIndex(__dirname + '/html', {icons: true, view: 'details'}));
+
+  app.get('/', function(req, res) {
+    res.sendFile(__dirname + '/html/index.htm');
+  })
+
+  let testNames = Object.keys(urlTests);
+  app.get('/log/tests.json',
+    function(req, res) {
+      res.setHeader("Content-Type", "application/json");
+      res.end(JSON.stringify(testNames));
+  })
+
+  app.get(/^\/log\/(.*)\/log\/files\.json$/,
+    function(req, res) {
+      log("Request for " + req.params[0] + "/log/files.json");
+      if (!testNames.includes(req.params[0])) {
+        res.sendStatus(400);
+        return;
+      }
+      sendfiles(config.app.logDirectory + "/" + req.params[0] + "/log",
+        function(files) {
+          res.setHeader("Content-Type", "application/json");
+          res.end(JSON.stringify(files.reverse()));
+        }
+      );
+  });
+
+  function sendfiles(dir, cb) {
+    const fs = require('fs');
+
+    fs.readdir(dir, (err, files) => {
+      cb(files);
+    })
+  }
+
+  let server = app.listen(config.app.serverPort, function (err) {
+    if (err) {
+      log(err,'error');
+      process.exit(1);
+    } else {
+      log("Server is listening on port " + config.app.serverPort);
+    }
+  }); 
+}
+
+function log(msg, etype) {
+  let msgo = (new Date()).toISOString() + " [urlwatcher] "
+
+  // https://stackoverflow.com/a/37081135
+  var e = new Error();
+  var stack = e.stack.toString().split(/\r\n|\n/);
+  var line = stack[2].replace(/.*\//,"").replace(/:(.*):.*/,":$1");
+  if (etype === 'error') {
+    console.error(msgo + line + " " + clc.red(msg));
+  } else if (etype === 'warning') {
+    console.log(msgo + line + " " + clc.yellow(msg));
+  } else {
+    console.log(msgo + line + " " + msg);
+  }
+}
+
+function round(t) {
+  return Math.round(10*t)/10
+}
+
+function exceptions(config) {
+  process.on('exit', function () {
+    log("process.on('exit') called.");
+    shutdown();
+  })
+  process.on('SIGINT', function () {
+    log("process.on('SIGINT') called.");
+    shutdown();
+  })
+  process.on('uncaughtException', function(err) {
+    log('Uncaught exception: ','error');
+    log(err,'error');
+    if (config.app.emailStatus) {
+      email(config.app.emailStatusTo, "URLWatcher exception on " 
+        + config.app.hostname 
+        + " at " 
+        + (new Date()).toISOString(), err.message);
+      log('Sent email to ' + config.app.emailStatusTo,'error');
+    } else {    
+      log('Not sending email b/c emailStatus = false.','error');
+    }
+  })
+}
