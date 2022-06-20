@@ -31,13 +31,12 @@
 		"publicHTML": "http://localhost:4444/"
 	},
 	"sendmail": {
-		"__comment": "Alert messages with use this address in the 'From' field",
+		"__comment": "Alert messages with this address in the 'From' field",
 		"from": "!!!!"
 	},
 	"nodemailer": {
 		"__comment": "To send using GMail, must allow 'less secure apps': https://myaccount.google.com/lesssecureapps",
 		"__comment": "Creating a GMail account used only for this app is recommended.",
-		"from": "!!!!",
 		"user": "!!!!", 
 		"password": "!!!!",
 		"host": "smtp.gmail.com",

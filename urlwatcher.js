@@ -27,8 +27,12 @@ let argv = yargs
               .alias('port','p')
               .describe('conf','Server configuration file')
               .alias('conf','c')
+              .boolean('debug')
+              .describe('debug','Show verbose log messages.')
+              .alias('debug','d')
               .default({
                 'port': 4444,
+                'debug': "false",
                 'conf': __dirname + '/conf/app-config.json'
               })
               .argv;
@@ -796,8 +800,7 @@ function maskEmailAddress(addr) {
 function email(to, subject, text, cb) {
 
   if (typeof(to) === "object") {
-    // Only writes emails sent about tests, not start/stop messages.
-    // TODO: Write system messages.
+
     // TODO: Handle email send failure.
     let work = to;
     cb = subject;
@@ -849,6 +852,7 @@ function email(to, subject, text, cb) {
       to: to,
       subject: subject,
       html: text,
+      silent: true
     }, function(err, reply) {
       if (err) {
         log('Error when attempting to send email:')
@@ -1009,6 +1013,8 @@ function server() {
 }
 
 function log(msg, etype) {
+  if (!argv.debug) return;
+
   let msgo = (new Date()).toISOString() + " [urlwatcher] "
 
   // https://stackoverflow.com/a/37081135
