@@ -12,10 +12,10 @@
 		"__comment": "hostname is used in the subject line of email messages. Defaults to that returned by os.hostname()",
 		"hostname": "",
 
-		"__comment": "Location for log files. Path is relative to location of app.js",
+		"__comment": "Location for log files. Path is relative to location of urlwatcher.js",
 		"logDirectory": "log",
 
-		"__comment": "Location of file with tests for app to run. Path is relative to location of app.js",
+		"__comment": "Location of file with tests for app to run. Path is relative to location of urlwatcher.js",
 		"urlTestsFile": "test/test.json",
 
 		"__comment": "The app starts a web server on this port that serves files in the html and log directories.",

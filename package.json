@@ -17,8 +17,7 @@
   },
   "scripts": {
     "test": "bash test/test.sh",
-    "test-remote": "bash test/test-remote.sh",
-    "start": "node app.js private/app-config.json",
-    "server": "nohup forever app.js private/app-config.json"
+    "start": "node urlwatcher.js -c private/app-config.json",
+    "server": "nohup forever urlwatcher.js -c private/app-config.json"
   }
 }

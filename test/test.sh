@@ -1,6 +1,6 @@
 echo "testing1234" > html/test.html
 
-node app.js test/app-config.json &
+node urlwatcher.js -c test/app-config.json &
 
 cd html/;
 sleep 2;

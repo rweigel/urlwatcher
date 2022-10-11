@@ -31,7 +31,7 @@ let argv = yargs
               .describe('debug','Show verbose log messages.')
               .alias('debug','d')
               .default({
-                'port': 4444,
+                'port': false,
                 'debug': "false",
                 'conf': __dirname + '/conf/app-config.json'
               })
@@ -248,7 +248,7 @@ function report(testName, work) {
   log("Wrote '" + testName + "' entry: " + entry.trim());
 
   // Create work directory (named TestName + "requests")
-  if (!fs.existsSync(work.workDirectory)) {
+  if (argv.debug && !fs.existsSync(work.workDirectory)) {
     mkdirp.sync(work.workDirectory);
   }
   // Remove absolute paths from strings.
@@ -303,7 +303,10 @@ function report(testName, work) {
           log("Disk issue fixed");
           // TODO: Send email that problem fixed
         }
-        fs.writeFileSync(work.workFile, JSON.stringify(workClone, null, 4));
+        if (argv.debug) {
+          // Only write work JSON in debug mode. Too many files otherwise.
+          fs.writeFileSync(work.workFile, JSON.stringify(workClone, null, 4));
+        }
       }
   });
 
@@ -472,6 +475,7 @@ function test(testName, work) {
   let L = results.length;
 
   if (results[L-1].error) {
+    work.emailTo = urlTests[testName]['emailAlertsTo'];
     work.emailSubject = 
             "❌: URLWatcher " 
             + testName 
@@ -494,7 +498,6 @@ function test(testName, work) {
   work.emailBody = [];
   let fails = 0;
   for (let checkName in urlTests[testName].tests) {
-
     if (checkName === "__comment") continue;  
 
     if (!urlTests[testName]['tests'].hasOwnProperty(checkName)) continue;
@@ -618,9 +621,7 @@ function test(testName, work) {
 
   // Prepare email
 
-  let requestDate = work.requestStartTime
-            .toISOString()
-                                          .replace(/T.*/,'');
+  let requestDate = work.requestStartTime.toISOString().replace(/T.*/,'');
 
   let d = new Date(work.requestStartTime);
   let requestDateLast = (new Date(d.setDate(d.getDate()-1)))
@@ -839,10 +840,10 @@ function email(to, subject, text, cb) {
   text = text.replace(/\n/g, "<br/>").replace(/ /g, "&nbsp;")
 
   if (to === "!!!!") {
-  log('Invalid email address of ' + to + ". Not sending email.",'warning');
-  if (cb) {
-    cb();
-  }
+    log('Invalid email address of ' + to + ". Not sending email.",'warning');
+    if (cb) {
+      cb();
+    }
     return;
   }
 
@@ -854,6 +855,7 @@ function email(to, subject, text, cb) {
       html: text,
       silent: true
     }, function(err, reply) {
+      console.log("xhere")
       if (err) {
         log('Error when attempting to send email:')
         log(err);     
@@ -864,7 +866,7 @@ function email(to, subject, text, cb) {
         log("Executing callback.")
         cb();
       }
-    });
+    })
   }
 
   if (config.app.emailMethod === "nodemailer") {
@@ -1013,7 +1015,9 @@ function server() {
 }
 
 function log(msg, etype) {
-  if (!argv.debug) return;
+  if (argv.debug == false && !['error','warning'].includes(etype)) {
+    return;
+  }
 
   let msgo = (new Date()).toISOString() + " [urlwatcher] "
 
