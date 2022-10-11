@@ -1,8 +1,9 @@
 # sudo cp urlwatcher.service /lib/systemd/system
 # sudo chmod 644 /lib/systemd/system/urlwatcher.service
+# sudo systemctl enable urlwatcher
 # sudo systemctl start urlwatcher
 # sudo systemctl status urlwatcher
-# sudo systemctl enable urlwatcher
+
 
 
 [Unit]
