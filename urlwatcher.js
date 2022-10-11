@@ -639,8 +639,11 @@ function test(testName, work) {
           + "date="
           + requestDate 
           + "&"
+          + "category="
+          + testName.split("/")[0]
+          + "&"
           + "test="
-          + testName;
+          + testName.split("/")[1];
 
     body = body
         + "\n\nSummary file:\n  " 
