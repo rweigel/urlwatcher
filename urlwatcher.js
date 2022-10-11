@@ -640,6 +640,7 @@ function test(testName, work) {
           + "&"
           + "category="
           + testName.split("/")[0]
+          + "&"
           + "test="
           + testName.split("/")[1];
 
