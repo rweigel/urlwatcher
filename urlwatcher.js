@@ -4,6 +4,7 @@ const os = require('os');
 const request     = require("request");
 const prettyHtml  = require('json-pretty-html').default;
 const sendmail    = require('sendmail')();
+//const sendmail    = require('sendmail')({devHost: 'localhost', devPort: 25});
 const nodemailer  = require('nodemailer');
 const chkDskSpace = require('check-disk-space');
 const crypto      = require("crypto");
@@ -114,7 +115,7 @@ function readConfig(configFile) {
   if (!config.app.emailMethod) {
     config.app.emailMethod = null;
   }
-  let emailMethods = [null, "sendmail", "nodemailer"];
+  let emailMethods = [null, "sendmail", "nodemailer","spawn"];
   if (!emailMethods.includes(config.app.emailMethod)) {
     log("readConfig(): config.app.emailMethod must be one of: " + emailMethods.join(","), 'error');
     process.exit(1);
@@ -842,12 +843,38 @@ function email(to, subject, text, cb) {
 
   text = text.replace(/\n/g, "<br/>").replace(/ /g, "&nbsp;")
 
-  if (to === "!!!!") {
-    log('Invalid email address of ' + to + ". Not sending email.",'warning');
-    if (cb) {
-      cb();
-    }
-    return;
+  if (to === "!!!!" || to === '') {
+      if (to === '!!!!') {
+	  log('Invalid email address of ' + to + ". Not sending email.",'warning');
+      } else {
+	  log('No to address');
+      }
+      if (cb) {
+	  cb();
+      }
+      return;
+  }
+  
+  if (config.app.emailMethod === "spawn") {
+    const {spawn} = require("child_process")
+
+    const ls = spawn("/home/ubuntu/.nvm/versions/node/v16.15.1/bin/node", ["/home/ubuntu/urlwatcher/test/email/sendmail.js", to, config.spawn.from , subject, text]);
+
+    ls.stdout.on('data', (data) => {
+      //console.log(`spawn stdout:\n${data}`);
+    });
+
+    ls.stderr.on('data', (data) => {
+      console.error(`spawn stderr:\n${data}`);
+    });
+
+    ls.on('close', (code) => {
+      console.log(`spawn exited with code ${code}`);
+      if (cb) {
+        log("Executing callback.")
+        cb();
+      }
+    });
   }
 
   if (config.app.emailMethod === "sendmail") {
@@ -858,7 +885,6 @@ function email(to, subject, text, cb) {
       html: text,
       silent: true
     }, function(err, reply) {
-      console.log("xhere")
       if (err) {
         log('Error when attempting to send email:')
         log(err);     
