@@ -4,7 +4,6 @@ const os = require('os');
 const request     = require("request");
 const prettyHtml  = require('json-pretty-html').default;
 const sendmail    = require('sendmail')();
-//const sendmail    = require('sendmail')({devHost: 'localhost', devPort: 25});
 const nodemailer  = require('nodemailer');
 const chkDskSpace = require('check-disk-space');
 const crypto      = require("crypto");
@@ -304,8 +303,7 @@ function report(testName, work) {
           log("Disk issue fixed");
           // TODO: Send email that problem fixed
         }
-        if (argv.debug) {
-          // Only write work JSON in debug mode. Too many files otherwise.
+        if (argv.debug || work.error) {
           fs.writeFileSync(work.workFile, JSON.stringify(workClone, null, 4));
         }
       }
@@ -343,7 +341,8 @@ function geturl(testName) {
     let opts = {
       "url": url,
       "time": true,
-      "timeout": urlTests[testName].timeout
+      "timeout": urlTests[testName].timeout,
+	"headers": {"User-Agent": "urlwatcher;  https://github.com/hapi-server/servers"}
     };
 
     log(work.requestStartTime.toISOString() + ' Requesting: ' + url);
@@ -811,7 +810,7 @@ function email(to, subject, text, cb) {
     cb = subject;
     to = work.emailTo;
     subject = work.emailSubject;
-    text = work.emailBody || work.emailSubject;
+    text = work.emailBody || work.emailSubject || "";
     let email = "To: " + maskEmailAddress(to) + "\n"
                 + "Subject: " + subject + "\n"
                 + "Body:\n"
@@ -830,7 +829,7 @@ function email(to, subject, text, cb) {
   }
 
   if (!text) {
-      text = subject;
+      text = subject || "";
   }
 
   if (!config.app.emailMethod) {
