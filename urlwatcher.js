@@ -450,6 +450,11 @@ function computeDirNames(testName, work) {
 
 function test(testName, work) {
 
+  const used = process.memoryUsage();
+  for (let key in used) {
+    console.log(`${key} ${Math.round(used[key] / 1024 / 1024 * 100) / 100} MB`);
+  }
+
   log(work.requestStartTime.toISOString() + ' Testing: '+ work.url);
 
   work = computeDirNames(testName, work);
@@ -474,27 +479,6 @@ function test(testName, work) {
   let results = urlTests[testName].results;
   let L = results.length;
 
-  if (false && results[L-1].error) {
-    // Socket timeout condition
-    work.emailTo = urlTests[testName]['emailAlertsTo'];
-    work.emailSubject = 
-            "❌: URLWatcher " 
-            + testName 
-            + " on " 
-            + config.app.hostname 
-            + ": "
-            + work.errorMessage;
-    if (L == 1) {
-      email(work);
-    } else {
-      if (!results[L-2].error) {
-        email(work);
-      }
-    }
-    report(testName, work);
-    return;
-  }
-
   work.testFailures = [];
   work.emailBody = [];
   let fails = Object.keys(urlTests[testName].tests).length;
@@ -514,6 +498,7 @@ function test(testName, work) {
         work.emailBody.push("✅: Socket connection time"
               + " <= " + urlTests[testName].tests[checkName]
               + " ms");
+        fails--;
       }
     }
 
