@@ -346,7 +346,7 @@ function geturl(testName) {
     let opts = {
       "url": url,
       "time": true,
-      "timeout": urlTests[testName]["tests"].timeout
+      "timeout": urlTests[testName]["tests"].timeout,
     	"headers": {"User-Agent": "urlwatcher;  https://github.com/hapi-server/servers"}
     };
 
