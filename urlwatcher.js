@@ -132,27 +132,32 @@ function readConfig(configFile) {
 function readTests() {
 
   // Read URL test file
-  let urlTestsFile = __dirname + "/" + config.app.urlTestsFile;
+  let urlTestsFileName = __dirname + "/" + config.app.urlTestsFile;
   let urlTests;
-  if (fs.existsSync(urlTestsFile)) {
-    let tmp = fs.readFileSync(urlTestsFile);
+  if (fs.existsSync(urlTestsFileName)) {
+    let urlTestsFileBlob = fs.readFileSync(urlTestsFileName);
+    log("Reading " + urlTestsFileName);
     try {
-      urlTests = JSON.parse(tmp);
+      urlTests = JSON.parse(urlTestsFileBlob);
     } catch (e) {
-      log("Could not JSON parse " + urlTestsFile + ". Exiting.",'error');
+      log("Could not JSON parse " + urlTestsFileName + ". Exiting.",'error');
       process.exit(1);        
     }
-    log("Read " + urlTestsFile);
+    log("Read " + urlTestsFileName);
   } else {
     log("File " + urlTestsFile + " not found. Exiting.",'error');
     process.exit(1);  
   }
 
   // TODO: Create JSON schema for test file and validate.
+  // TODO: Make urlTests an array instead of an object. 
 
   // Replace references to files with content of file.
   for (let testName in urlTests) {
-    if (typeof(urlTests[testName]) === "string") {
+    if (typeof(urlTests[testName]) !== "string") {
+      urlTests[testName + "/" + urlTests[testName]['testName']] = JSON.parse(JSON.stringify(urlTests[testName]));
+      delete urlTests[testName];
+    } else {
       let fname = __dirname + "/" + urlTests[testName];
       log("Reading and parsing\n  " + fname);
       if (!fs.existsSync(fname)) {
@@ -342,7 +347,7 @@ function geturl(testName) {
     let opts = {
       "url": url,
       "time": true,
-      "timeout": urlTests[testName].timeout
+      "timeout": urlTests[testName]["tests"].timeout
     };
 
     log(work.requestStartTime.toISOString() + ' Requesting: ' + url);
@@ -352,11 +357,12 @@ function geturl(testName) {
       if (typeof(response) != "undefined") {
         work.statusCode = response.statusCode;
       }
-      work.error = false;
-      work.errorMessage = "";
 
+      work.error = false;
+      work.timeout = false;
       if (error) {
-        if (!work.error) {
+        if (work.error == false) {
+          work.timeout = true;
           work.error = true;
           log('Response error. Calling urlError().');
           urlError(error, work);
@@ -366,21 +372,16 @@ function geturl(testName) {
         return;
       }
 
-      work.timings = response.timings;
       work.timingPhases = response.timingPhases;
-
       work.headers = response.headers;
-      if (typeof(body) === "undefined") {
-        work.body = undefined;
-      } else {
-        work.body = body;
-      }
+      work.body = body;
 
       test(testName, work);
 
     })
     .on("error", function (error) {
-      if (!work.error) {
+      work.timeout = true;
+      if (work.error == undefined) {
         work.error = true;
         log('on("error") event. Calling urlError().');
         urlError(error, work);
@@ -462,7 +463,6 @@ function test(testName, work) {
     work.bodyMD5    = undefined;
     work.bodyLength = -1;
     work.testFails  = -1;
-    work.timings    = {};
     work.timingPhases = {'firstByte': -1, 'download': -1, 'total': -1};
   } else {
     work.bodyMD5    = crypto.createHash("md5").update(work.body).digest("hex");         
@@ -474,7 +474,8 @@ function test(testName, work) {
   let results = urlTests[testName].results;
   let L = results.length;
 
-  if (results[L-1].error) {
+  if (false && results[L-1].error) {
+    // Socket timeout condition
     work.emailTo = urlTests[testName]['emailAlertsTo'];
     work.emailSubject = 
             "❌: URLWatcher " 
@@ -496,21 +497,36 @@ function test(testName, work) {
 
   work.testFailures = [];
   work.emailBody = [];
-  let fails = 0;
+  let fails = Object.keys(urlTests[testName].tests).length;
+
+  console.log(results[L-1])
   for (let checkName in urlTests[testName].tests) {
+
     if (checkName === "__comment") continue;  
 
-    if (!urlTests[testName]['tests'].hasOwnProperty(checkName)) continue;
+    if (checkName === "timeout") {
+      if (results[L-1][checkName] == true) {
+        work.testFailures.push(checkName);
+        work.emailBody.push("❌: Socket connection time"
+              + " > " + urlTests[testName].tests[checkName]
+              + " ms");
+        break;
+      } else {
+        work.emailBody.push("✅: Socket connection time"
+              + " <= " + urlTests[testName].tests[checkName]
+              + " ms");
+      }
+    }
 
-    if (checkName === "statusCode") {
+    if (checkName === "statusCode" && results[L-1][checkName] != undefined) {
       if (results[L-1][checkName] != urlTests[testName].tests[checkName]) {
-        fails++;
         work.testFailures.push(checkName);
         work.emailBody.push("❌: Status code of " 
               + results[L-1][checkName] 
               + " is not equal to " 
               + urlTests[testName].tests[checkName]);
       } else {
+        fails--;
         work.emailBody.push("✅: Status code of " 
               + results[L-1][checkName] 
               + " is equal to " 
@@ -519,42 +535,44 @@ function test(testName, work) {
     }
 
     // TODO: Repeated code below.
-    if (checkName === "lengthChanged") {
-      if (!urlTests[testName][checkName]) continue;
+    if (checkName === "lengthChanged" && results[L-1]["body"] != undefined) {
       if (L > 1) {
         //console.log(checkName, L,results[L-1].bodyLength,results[L-2].bodyLength);
         if (results[L-1].bodyLength != results[L-2].bodyLength) {
-          fails++;
           work.testFailures.push(checkName);
           work.emailBody.push("❌: Current length of " 
                 + results[L-2].bodyLength 
                 + " differs from that for last test (" 
                 + results[L-1].bodyLength + ")");
         } else {
+          fails--;
           work.emailBody.push("✅: Current length of " 
                 + results[L-2].bodyLength 
                 + " is same as that for last test");
         }
+      } else {
+        fails--;
       }
 
     }
-    if (checkName === "md5Changed") {
-      if (!urlTests[testName][checkName]) continue;
+    if (checkName === "md5Changed" && results[L-1]["body"] != undefined) {
+      //if (!urlTests[testName][checkName]) continue;
       if (L > 1) {
         if (results[L-1].bodyMD5 != results[L-2].bodyMD5) {
-          fails++;
           work.testFailures.push(checkName);
           work.emailBody.push("❌: Current MD5 differs from that for last test");
         } else {
           work.emailBody.push("✅: Current MD5 is same as that for last test");          
+          fails--;
         }
+      } else {
+        fails--;
       }
     }
 
-    if (checkName === "bodyRegExp") {
+    if (checkName === "bodyRegExp" && results[L-1]["body"] != undefined) {
       let re = new RegExp(urlTests[testName].tests[checkName][0], urlTests[testName].tests[checkName][1]);
       if (!re.exec(results[L-1].body)) {
-        fails++;
         work.testFailures.push(checkName);
         work.emailBody.push("❌: Body does not match regular expression '" 
               + urlTests[testName].tests[checkName][0] 
@@ -562,6 +580,7 @@ function test(testName, work) {
               + urlTests[testName].tests[checkName][1] 
               + "'");
       } else {
+        fails--;
         work.emailBody.push("✅: Body matches regular expression '" 
               + urlTests[testName].tests[checkName][0] 
               + "' with options '" 
@@ -570,46 +589,47 @@ function test(testName, work) {
       }
     }
 
-    // TODO: Repeated code below.
-    if (checkName === "firstByte") {
+    if (checkName === "firstByte" && results[L-1]["timeout"] == false) {
       if (results[L-1]["timingPhases"][checkName] > urlTests[testName].tests[checkName]) {
-        fails++;
         work.testFailures.push(checkName);
         work.emailBody.push("❌: Time to first chunk of " 
               + round(results[L-1]["timingPhases"][checkName]) 
               + " > " + urlTests[testName].tests[checkName] 
               + " ms");
       } else {
+        fails--;
         work.emailBody.push("✅: Time to first chunk of " 
               + round(results[L-1]["timingPhases"][checkName]) 
               + " <= " + urlTests[testName].tests[checkName] 
               + " ms");       
       }
     }
-    if (checkName === "download") {
+
+    if (checkName === "download" && results[L-1]["timeout"] == false) {
       if (results[L-1]["timingPhases"][checkName] > urlTests[testName].tests[checkName]) {
-        fails++;
         work.testFailures.push(checkName);
         work.emailBody.push("❌: Request transfer time of " 
               + round(results[L-1]["timingPhases"][checkName]) 
               + " > " + urlTests[testName].tests[checkName] 
               + " ms");
       } else {
+        fails--;
         work.emailBody.push("✅: Request transfer time of " 
               + round(results[L-1]["timingPhases"][checkName])
               + " <= " + urlTests[testName].tests[checkName]
               + " ms");       
       }
     }
-    if (checkName === "total") {
+
+    if (checkName === "total" && results[L-1]["timeout"] == false) {
       if (results[L-1]["timingPhases"][checkName] > urlTests[testName].tests[checkName]) {
-        fails++;
         work.testFailures.push(checkName);
         work.emailBody.push("❌: Request time of " 
               + round(results[L-1]["timingPhases"][checkName])
               + " > " + urlTests[testName].tests[checkName]
               + " ms");
       } else {
+        fails--;
         work.emailBody.push("✅: Request time of "
               + round(results[L-1]["timingPhases"][checkName])
               + " <= " + urlTests[testName].tests[checkName]
@@ -843,7 +863,7 @@ function email(to, subject, text, cb) {
   text = text.replace(/\n/g, "<br/>").replace(/ /g, "&nbsp;")
 
   if (to === "!!!!") {
-    log('Invalid email address of ' + to + ". Not sending email.",'warning');
+    log("Invalid email address of '" + to + "'. Not sending email.",'warning');
     if (cb) {
       cb();
     }
