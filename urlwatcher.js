@@ -499,7 +499,6 @@ function test(testName, work) {
   work.emailBody = [];
   let fails = Object.keys(urlTests[testName].tests).length;
 
-  console.log(results[L-1])
   for (let checkName in urlTests[testName].tests) {
 
     if (checkName === "__comment") continue;  
