@@ -114,7 +114,7 @@ function readConfig(configFile) {
   if (!config.app.emailMethod) {
     config.app.emailMethod = null;
   }
-  let emailMethods = [null, "sendmail", "nodemailer"];
+  let emailMethods = [null, "sendmail", "nodemailer","spawn"];
   if (!emailMethods.includes(config.app.emailMethod)) {
     log("readConfig(): config.app.emailMethod must be one of: " + emailMethods.join(","), 'error');
     process.exit(1);
@@ -308,8 +308,7 @@ function report(testName, work) {
           log("Disk issue fixed");
           // TODO: Send email that problem fixed
         }
-        if (argv.debug) {
-          // Only write work JSON in debug mode. Too many files otherwise.
+        if (argv.debug || work.error) {
           fs.writeFileSync(work.workFile, JSON.stringify(workClone, null, 4));
         }
       }
@@ -348,6 +347,7 @@ function geturl(testName) {
       "url": url,
       "time": true,
       "timeout": urlTests[testName]["tests"].timeout
+    	"headers": {"User-Agent": "urlwatcher;  https://github.com/hapi-server/servers"}
     };
 
     log(work.requestStartTime.toISOString() + ' Requesting: ' + url);
@@ -830,7 +830,7 @@ function email(to, subject, text, cb) {
     cb = subject;
     to = work.emailTo;
     subject = work.emailSubject;
-    text = work.emailBody || work.emailSubject;
+    text = work.emailBody || work.emailSubject || "";
     let email = "To: " + maskEmailAddress(to) + "\n"
                 + "Subject: " + subject + "\n"
                 + "Body:\n"
@@ -849,7 +849,7 @@ function email(to, subject, text, cb) {
   }
 
   if (!text) {
-      text = subject;
+      text = subject || "";
   }
 
   if (!config.app.emailMethod) {
@@ -862,12 +862,38 @@ function email(to, subject, text, cb) {
 
   text = text.replace(/\n/g, "<br/>").replace(/ /g, "&nbsp;")
 
-  if (to === "!!!!") {
-    log("Invalid email address of '" + to + "'. Not sending email.",'warning');
-    if (cb) {
-      cb();
-    }
-    return;
+  if (to === "!!!!" || to === '') {
+      if (to === '!!!!') {
+	  log('Invalid email address of ' + to + ". Not sending email.",'warning');
+      } else {
+	  log('No to address');
+      }
+      if (cb) {
+	  cb();
+      }
+      return;
+  }
+  
+  if (config.app.emailMethod === "spawn") {
+    const {spawn} = require("child_process")
+
+    const ls = spawn("/home/ubuntu/.nvm/versions/node/v16.15.1/bin/node", ["/home/ubuntu/urlwatcher/test/email/sendmail.js", to, config.spawn.from , subject, text]);
+
+    ls.stdout.on('data', (data) => {
+      //console.log(`spawn stdout:\n${data}`);
+    });
+
+    ls.stderr.on('data', (data) => {
+      console.error(`spawn stderr:\n${data}`);
+    });
+
+    ls.on('close', (code) => {
+      console.log(`spawn exited with code ${code}`);
+      if (cb) {
+        log("Executing callback.")
+        cb();
+      }
+    });
   }
 
   if (config.app.emailMethod === "sendmail") {
@@ -878,7 +904,6 @@ function email(to, subject, text, cb) {
       html: text,
       silent: true
     }, function(err, reply) {
-      console.log("xhere")
       if (err) {
         log('Error when attempting to send email:')
         log(err);     
