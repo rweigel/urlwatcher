@@ -309,6 +309,7 @@ function report(testName, work) {
           // TODO: Send email that problem fixed
         }
         if (argv.debug || work.error) {
+          log("Writing response file.");
           fs.writeFileSync(work.workFile, JSON.stringify(workClone, null, 4));
         }
       }
