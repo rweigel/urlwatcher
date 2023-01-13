@@ -252,21 +252,12 @@ function report(testName, work) {
 
   log("Wrote '" + testName + "' entry: " + entry.trim());
 
-  // Create work directory (named TestName + "requests")
-  if (argv.debug && !fs.existsSync(work.workDirectory)) {
-    mkdirp.sync(work.workDirectory);
-  }
   // Remove absolute paths from strings.
   let workClone = JSON.parse(JSON.stringify(work));
   for (key in workClone) {
     if (typeof(workClone[key]) === "string") {
       workClone[key] = workClone[key].replace(__dirname + "/", "");
     }
-  }
-  if (!workClone.testError) {
-    // Save disk space by not storing body.
-    // TODO: Write reference body and put link to it in workClone.body.
-    delete workClone.body;
   }
 
   // TODO: Should also do tests before creating or appending to entry file above.
@@ -308,9 +299,19 @@ function report(testName, work) {
           log("Disk issue fixed");
           // TODO: Send email that problem fixed
         }
-        if (argv.debug || work.error) {
-          log("Writing response file.");
+
+        let bodyChanged = work.testFailures.includes("md5Changed") || work.testFailures.includes("lengthChanged");
+        if (argv.debug || work.testFails > 0) {
+          if (bodyChanged == false || (work.headers && work.headers['content-type'].includes("text") == false)) {
+            log("Removing body from response file because it did not change or is not text.");
+            delete workClone.body;
+          }
+          log("Writing response file " + work.workFile);
+          if (!fs.existsSync(work.workDirectory)) {
+            mkdirp.sync(work.workDirectory);
+          }
           fs.writeFileSync(work.workFile, JSON.stringify(workClone, null, 4));
+          log("Wrote response file " + work.workFile);
         }
       }
   });
@@ -359,12 +360,12 @@ function geturl(testName) {
         work.statusCode = response.statusCode;
       }
 
-      work.error = false;
+      work.requestError = false;
       work.timeout = false;
       if (error) {
-        if (work.error == false) {
+        if (work.requestError == false) {
           work.timeout = true;
-          work.error = true;
+          work.requestError = true;
           log('Response error. Calling urlError().');
           urlError(error, work);
         } else {
@@ -382,8 +383,8 @@ function geturl(testName) {
     })
     .on("error", function (error) {
       work.timeout = true;
-      if (work.error == undefined) {
-        work.error = true;
+      if (work.requestError == undefined) {
+        work.requestError = true;
         log('on("error") event. Calling urlError().');
         urlError(error, work);
       } else {
@@ -413,14 +414,14 @@ function geturl(testName) {
                 buff += data.toString();
               })
               .on("error", function(e){
-                work.error = true;
+                work.requestError = true;
                 work.errorMessage = e;
                 work.bodyMD5 = undefined;
                 conn.end();
               })
               .on("end", function(){
                 work.getEndTime = new Date()-work[urlMD5].getStartTime;
-                work.error = false;
+                work.requestError = false;
                 work[urlMD5].statusCode = 200;
               });
             }
@@ -451,10 +452,12 @@ function computeDirNames(testName, work) {
 
 function test(testName, work) {
 
-  const used = process.memoryUsage();
-  for (let key in used) {
-    console.log(`${key} ${Math.round(used[key] / 1024 / 1024 * 100) / 100} MB`);
-  }
+  if (0) {
+    const used = process.memoryUsage();
+    for (let key in used) {
+      console.log(`${key} ${Math.round(used[key] / 1024 / 1024 * 100) / 100} MB`);
+    }
+  }  
 
   log(work.requestStartTime.toISOString() + ' Testing: '+ work.url);
 
@@ -465,7 +468,7 @@ function test(testName, work) {
     urlTests[testName].results.shift();
   }
 
-  if (work.error) {
+  if (work.requestError) {
     work.bodyMD5    = undefined;
     work.bodyLength = -1;
     work.testFails  = -1;
