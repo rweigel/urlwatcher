@@ -281,7 +281,8 @@ function report(testName, work) {
       // Send only once per day
       // Send when fixed
       if (diskSpace.free < diskMin || (iswin32 && inodeNums[1] < inodeMin)) {
-        if (app['lastEmail'] == false) {
+	  //console.log(diskSpace)
+          if (app['lastEmail'] == false) {
           app['lastEmail'] = true;
           log("report(): Sending low disk email",'error');
           let title = "URLWatcher low disk resources on " + config.app.hostname + " at " + (new Date()).toISOString();
@@ -300,7 +301,7 @@ function report(testName, work) {
           // TODO: Send email that problem fixed
         }
 
-        let bodyChanged = work.testFailures.includes("md5Changed") || work.testFailures.includes("lengthChanged");
+        let bodyChanged = work.testFailures.includes("md5Changed") || work.testFailures.includes("lengthChanged") || work.testFailures.includes("bodyRegExp");
         if (argv.debug || work.testFails > 0) {
           if (bodyChanged == false || (work.headers && work.headers['content-type'].includes("text") == false)) {
             log("Removing body from response file because it did not change or is not text.");
