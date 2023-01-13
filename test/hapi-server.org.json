@@ -1,0 +1,88 @@
+[
+    {
+        "emailAlerts": true,
+        "emailAlertsTo": "Robert.SWeigel@gmail.com",
+        "emailThreshold": 2,
+        "url": "http://hapi-server.org/",
+        "interval": 60000,
+        "testName": "",
+        "tests": {
+            "timeout": 2000,
+            "lengthChanged": true,
+            "statusCode": 200,
+            "md5Changed": true,
+            "firstByte": 1000,
+            "total": 2000,
+            "download": 1000,
+            "bodyRegExp": ["specification",""]
+        }
+    },
+    {
+        "emailAlerts": true,
+        "emailAlertsTo": "Robert.SWeigel@gmail.com",
+        "emailThreshold": 2,
+        "url": "http://mag.gmu.edu/hapi-server/plot",
+        "interval": 300000,
+        "testName": "plot",
+        "tests": {
+            "timeout": 2000,
+            "lengthChanged": true,
+            "statusCode": 200,
+            "md5Changed": true,
+            "firstByte": 3000,
+            "total": 4000,
+            "download": 1000
+        }
+    },
+    {
+        "emailAlerts": true,
+        "emailAlertsTo": "Robert.SWeigel@gmail.com",
+        "emailThreshold": 2,
+        "url": "http://hapi-server.org/plot?server=http://hapi-server.org/servers/TestData2.0/hapi&id=dataset1&parameters=scalar&time.min=1970-01-01Z&time.max=1970-01-01T00:00:11Z&transparent=false&usecache=False",
+        "interval": 300000,
+        "testName": "plot",
+        "tests": {
+            "timeout": 2000,
+            "lengthChanged": true,
+            "statusCode": 200,
+            "md5Changed": true,
+            "firstByte": 3000,
+            "total": 4000,
+            "download": 1000
+        }
+    },
+    {
+        "emailAlerts": true,
+        "emailAlertsTo": "Robert.SWeigel@gmail.com",
+        "emailThreshold": 2,
+        "url": "http://hapi-server.org/servers/",
+        "interval": 30000,
+        "testName": "servers",
+        "tests": {
+            "timeout": 2000,
+            "lengthChanged": true,
+            "statusCode": 200,
+            "md5Changed": true,
+            "firstByte": 3000,
+            "total": 4000,
+            "download": 1000
+        }
+    },
+    {
+        "emailAlerts": true,
+        "emailAlertsTo": "Robert.SWeigel@gmail.com",
+        "url": "http://hapi-server.org/verify",
+        "interval": 60000,
+        "testName": "verify",
+        "tests": {
+            "timeout": 2000,
+            "lengthChanged": true,
+            "statusCode": 200,
+            "md5Changed": true,
+            "firstByte": 1000,
+            "total": 2000,
+            "download": 1000,
+            "bodyRegExp": ["verifier",""]
+        }
+    }
+]

@@ -19,7 +19,7 @@
 		"__comment": "Any test may be omitted. Thes are all of the possible tests.",
 		"tests": {
 			"__comment": "Read and connection timeout. See https://github.com/request/request",
-			"timeout": 100,
+			"timeout": 1000,
 
 			"__comment": "Error triggered if response size changes and lengthChanged = true",
 			"lengthChanged": true,
@@ -31,7 +31,7 @@
 			"md5Changed": true,
 
 			"__comment": "Error triggered if time to first byte in milliseconds > firstByte. See timingPhases at https://github.com/request/request",
-			"firstByte": 2,
+			"firstByte": 200,
 
 			"__comment": "Error triggered if duration HTTP download in milliseconds > download. See timingPhases at https://github.com/request/request",
 			"download": 0.3,

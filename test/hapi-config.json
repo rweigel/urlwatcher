@@ -1,0 +1,15 @@
+{
+	"app": {
+		"emailStatus": true,
+		"emailStatusTo": "Robert.SWeigel@gmail.com",
+		"debug": true,
+		"logDirectory": "log",
+		"hostname": "",
+		"urlTestsFile": "test/hapi.json",
+		"serverPort": 4444,
+		"publicHTML": ""
+	},
+	"sendmail": {
+		"from": "urlwatcher@hapi-server.org"
+	}
+}
