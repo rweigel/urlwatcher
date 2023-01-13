@@ -301,7 +301,11 @@ function report(testName, work) {
           // TODO: Send email that problem fixed
         }
 
-        let bodyChanged = work.testFailures.includes("md5Changed") || work.testFailures.includes("lengthChanged") || work.testFailures.includes("bodyRegExp");
+	let bodyChanged = false;
+	if (work.testFailures) {
+          bodyChanged = work.testFailures.includes("md5Changed") || work.testFailures.includes("lengthChanged") || work.testFailures.includes("bodyRegExp");
+	}
+
         if (argv.debug || work.testFails > 0) {
           if (bodyChanged == false || (work.headers && work.headers['content-type'].includes("text") == false)) {
             log("Removing body from response file because it did not change or is not text.");
