@@ -99,6 +99,28 @@ for (let testName in urlTests) {
 // Start server for serving log files and plots.
 server();
 
+    function dumpmem() {
+            let logStr = (new Date()).toISOString();
+            let YMD = logStr.substr(0,10);
+            for (const [key,value] of Object.entries(process.memoryUsage())){
+                logStr = logStr + "," + parseInt(value/1000000);
+            }
+            fs.appendFile('/home/ubuntu/urlwatcher-memory-' + YMD + '.txt', logStr + "\n", function (err) {
+                if (err) throw err;
+            });
+    }
+
+let YMD = (new Date()).toISOString().substr(0,10);
+let logStr = YMD;
+for (const [key,value] of Object.entries(process.memoryUsage())){
+   logStr = logStr + "," + key;
+}
+
+fs.appendFile('/home/ubuntu/urlwatcher-memory-' + YMD + '.txt', "----\n" + logStr + "\n", function (err) {
+   if (err) throw err;
+});
+dumpmem();
+
 function readConfig(configFile) {
   // Read configuration file
   if (fs.existsSync(configFile)) {
@@ -457,12 +479,7 @@ function computeDirNames(testName, work) {
 
 function test(testName, work) {
 
-  if (0) {
-    const used = process.memoryUsage();
-    for (let key in used) {
-      console.log(`${key} ${Math.round(used[key] / 1024 / 1024 * 100) / 100} MB`);
-    }
-  }  
+  dumpmem();
 
   log(work.requestStartTime.toISOString() + ' Testing: '+ work.url);
 
@@ -531,7 +548,7 @@ function test(testName, work) {
     if (checkName === "lengthChanged" && results[L-1]["body"] != undefined) {
       if (L > 1) {
         //console.log(checkName, L,results[L-1].bodyLength,results[L-2].bodyLength);
-        if (results[L-1].bodyLength != results[L-2].bodyLength) {
+        if (results[L-1].bodyLength != results[L-2].bodyLength && results[L-2]["bodyLength"] != -1) {
           work.testFailures.push(checkName);
           work.emailBody.push("❌: Current length of " 
                 + results[L-2].bodyLength 
@@ -548,10 +565,10 @@ function test(testName, work) {
       }
 
     }
-    if (checkName === "md5Changed" && results[L-1]["body"] != undefined) {
+      if (checkName === "md5Changed" && results[L-1]["body"] != undefined) {
       //if (!urlTests[testName][checkName]) continue;
       if (L > 1) {
-        if (results[L-1].bodyMD5 != results[L-2].bodyMD5) {
+        if (results[L-1].bodyMD5 != results[L-2].bodyMD5 && results[L-2]["bodyLength"] != -1) {
           work.testFailures.push(checkName);
           work.emailBody.push("❌: Current MD5 differs from that for last test");
         } else {
