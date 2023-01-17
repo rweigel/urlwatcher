@@ -12,7 +12,7 @@
 		"url": "http://localhost:4444/html/test.html",
 
 		"__comment": "Time interval between tests in milliseconds",
-		"interval": 1000,
+		"interval": 10,
 
 		"testName": "landing",
 
@@ -31,7 +31,7 @@
 			"md5Changed": true,
 
 			"__comment": "Error triggered if time to first byte in milliseconds > firstByte. See timingPhases at https://github.com/request/request",
-			"firstByte": 200,
+			"firstByte": 0.1,
 
 			"__comment": "Error triggered if duration HTTP download in milliseconds > download. See timingPhases at https://github.com/request/request",
 			"download": 0.3,

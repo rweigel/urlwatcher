@@ -11,6 +11,7 @@ const mkdirp      = require('mkdirp'); // Node 10 has native support for recursi
 const clc         = require('chalk');
 const yargs       = require('yargs');
 
+
 const ver  = parseInt(process.version.slice(1).split('.')[0]);
 if (ver < 6) {
   let msg = "node.js version >= 6 required. Version " + process.version + " is being used.";
@@ -96,30 +97,36 @@ for (let testName in urlTests) {
   geturl(testName);
 }
 
+dumpmem(true);
+
 // Start server for serving log files and plots.
 server();
 
-    function dumpmem() {
-            let logStr = (new Date()).toISOString();
-            let YMD = logStr.substr(0,10);
-            for (const [key,value] of Object.entries(process.memoryUsage())){
-                logStr = logStr + "," + parseInt(value/1000000);
-            }
-            fs.appendFile('/home/ubuntu/urlwatcher-memory-' + YMD + '.txt', logStr + "\n", function (err) {
-                if (err) throw err;
-            });
+function dumpmem(firstCall) {
+
+  let ISOString = (new Date()).toISOString();
+  let YMD = ISOString.substr(0,10);
+  let fileName = config.app.logDirectory + '/urlwatcher-memory-' + YMD + '.txt';
+  let logStr = ISOString;
+
+  if (firstCall) {
+    for (const [key,value] of Object.entries(process.memoryUsage())) {
+       logStr = logStr + "," + key;
     }
 
-let YMD = (new Date()).toISOString().substr(0,10);
-let logStr = YMD;
-for (const [key,value] of Object.entries(process.memoryUsage())){
-   logStr = logStr + "," + key;
-}
+    fs.appendFile(fileName, "----\n" + logStr + "\n", function (err) {
+     if (err) throw err;
+    });
+    return;
+  }
 
-fs.appendFile('/home/ubuntu/urlwatcher-memory-' + YMD + '.txt', "----\n" + logStr + "\n", function (err) {
-   if (err) throw err;
-});
-dumpmem();
+  for (const [key,value] of Object.entries(process.memoryUsage())) {
+      logStr = logStr + "," + parseInt(value/1000000);
+  }
+  fs.appendFile(fileName, logStr + "\n", function (err) {
+    if (err) throw err;
+  });
+}
 
 function readConfig(configFile) {
   // Read configuration file
@@ -247,7 +254,7 @@ function report(testName, work) {
     statusCode = -1;
   }
 
-  var entry = new Date(work.requestStartTime).toISOString() 
+  let entry = new Date(work.requestStartTime).toISOString() 
           + ","
           + statusCode
           + ","
@@ -274,74 +281,7 @@ function report(testName, work) {
 
   log("Wrote '" + testName + "' entry: " + entry.trim());
 
-  // Remove absolute paths from strings.
-  let workClone = JSON.parse(JSON.stringify(work));
-  for (key in workClone) {
-    if (typeof(workClone[key]) === "string") {
-      workClone[key] = workClone[key].replace(__dirname + "/", "");
-    }
-  }
-
-  // TODO: Should also do tests before creating or appending to entry file above.
-  const inodeMin = 50000; // Change to percent?
-  const diskMin = 10000000;
-  let inodesNums = [-1,-1];
-  let inodeMsg = "";
-  let iswin32 = false;
-  if (process.platform !== 'win32') {
-      iswin32 = true;
-      // TODO: Make async. Don't bother checking if last 10 checks were OK?
-      // Better to catch out of disk space error and then report if issue is inode
-      // or disk space?
-      inodeNums = checkInodes(__dirname);
-      inodeMsg = "inodes Free:  " + inodeNums[1] + "\n"
-               + "inodes Avail: " + inodeNums[0] + " (min = " + inodeMin + ")\n";
-  }
-
-  chkDskSpace(__dirname).then((diskSpace) => {
-      // TODO: Don't bother checking if last 10 checks were OK?
-      // Send only once per day
-      // Send when fixed
-      if (diskSpace.free < diskMin || (iswin32 && inodeNums[1] < inodeMin)) {
-	  //console.log(diskSpace)
-          if (app['lastEmail'] == false) {
-          app['lastEmail'] = true;
-          log("report(): Sending low disk email",'error');
-          let title = "URLWatcher low disk resources on " + config.app.hostname + " at " + (new Date()).toISOString();
-          let body =   "Disk Free:    " + diskSpace.free + " (min = " + diskMin + ")\n" 
-                     + "Disk Size:    " + diskSpace.size + "\n"
-                     + inodeMsg
-                     + "Will not write result file.";
-          email(config.app.emailStatusTo, title, body);
-        } else {
-          log("Not sending low disk email; already sent.");
-        }
-      } else {
-        if (app['lastEmail'] == true) {
-          app['lastEmail'] = false;
-          log("Disk issue fixed");
-          // TODO: Send email that problem fixed
-        }
-
-	let bodyChanged = false;
-	if (work.testFailures) {
-          bodyChanged = work.testFailures.includes("md5Changed") || work.testFailures.includes("lengthChanged") || work.testFailures.includes("bodyRegExp");
-	}
-
-        if (argv.debug || work.testFails > 0) {
-          if (bodyChanged == false || (work.headers && work.headers['content-type'].includes("text") == false)) {
-            log("Removing body from response file because it did not change or is not text.");
-            delete workClone.body;
-          }
-          log("Writing response file " + work.workFile);
-          if (!fs.existsSync(work.workDirectory)) {
-            mkdirp.sync(work.workDirectory);
-          }
-          fs.writeFileSync(work.workFile, JSON.stringify(workClone, null, 4));
-          log("Wrote response file " + work.workFile);
-        }
-      }
-  });
+  writeResponseFile(work);
 
   // Re-read test file on each iteration?
   try {
@@ -351,7 +291,7 @@ function report(testName, work) {
   }
 
   // Queue next test on testName
-  setTimeout(() => {geturl(testName)}, urlTests[testName].interval);
+  setTimeout(function () {geturl(testName)}, urlTests[testName].interval);
 }
 
 function geturl(testName) {
@@ -365,6 +305,7 @@ function geturl(testName) {
     test(testName, work);
   }
 
+  //let work = null;
   let work = {};
   work.requestStartTime = new Date();
   
@@ -474,7 +415,6 @@ function computeDirNames(testName, work) {
   work.emailDirectory = config.app.logDirectory + "/" + testName + "/emails";
   work.emailFile = work.emailDirectory + "/" + timeStamp + ".txt";
 
-  return work;
 }
 
 function test(testName, work) {
@@ -483,12 +423,15 @@ function test(testName, work) {
 
   log(work.requestStartTime.toISOString() + ' Testing: '+ work.url);
 
-  work = computeDirNames(testName, work);
+  computeDirNames(testName, work);
 
   urlTests[testName].results.push(work);
   if (urlTests[testName].results.length > 1 + urlTests[testName]["emailThreshold"]) {
     urlTests[testName].results.shift();
   }
+  //urlTests[testName].results = JSON.parse(JSON.stringify(urlTests[testName].results));
+  //console.log(urlTests[testName])
+  //console.log(urlTests[testName].results)
 
   if (work.requestError) {
     work.bodyMD5    = undefined;
@@ -874,12 +817,12 @@ function email(to, subject, text, cb) {
 
   if (to === "!!!!" || to === '') {
       if (to === '!!!!') {
-	  log('Invalid email address of ' + to + ". Not sending email.",'warning');
+        log('Invalid email address of ' + to + ". Not sending email.",'warning');
       } else {
-	  log('No to address');
+        log('No to address');
       }
       if (cb) {
-	  cb();
+        cb();
       }
       return;
   }
@@ -887,7 +830,9 @@ function email(to, subject, text, cb) {
   if (config.app.emailMethod === "spawn") {
     const {spawn} = require("child_process")
 
-    const ls = spawn("/home/ubuntu/.nvm/versions/node/v16.15.1/bin/node", ["/home/ubuntu/urlwatcher/test/email/sendmail.js", to, config.spawn.from , subject, text]);
+    const ls = spawn("/home/ubuntu/.nvm/versions/node/v16.15.1/bin/node",
+                ["/home/ubuntu/urlwatcher/test/email/sendmail.js",
+                to, config.spawn.from, subject, text]);
 
     ls.stdout.on('data', (data) => {
       //console.log(`spawn stdout:\n${data}`);
@@ -1005,11 +950,84 @@ function checkInodes(dir) {
     return [parseInt(cols[0][1]), parseInt(cols[0][3])];
 } 
 
+function writeResponseFile(work) {
+
+  // Remove absolute paths from strings.
+  let workClone = JSON.parse(JSON.stringify(work));
+  for (key in workClone) {
+    if (typeof(workClone[key]) === "string") {
+      workClone[key] = workClone[key].replace(__dirname + "/", "");
+    }
+  }
+
+  // TODO: Should also do tests before creating or appending to entry file above.
+  const inodeMin = 50000; // Change to percent?
+  const diskMin = 10000000;
+  let inodesNums = [-1,-1];
+  let inodeMsg = "";
+  let iswin32 = false;
+  if (process.platform !== 'win32') {
+      iswin32 = true;
+      // TODO: Make async. Don't bother checking if last 10 checks were OK?
+      // Better to catch out of disk space error and then report if issue is inode
+      // or disk space?
+      inodeNums = checkInodes(__dirname);
+      inodeMsg = "inodes Free:  " + inodeNums[1] + "\n"
+               + "inodes Avail: " + inodeNums[0] + " (min = " + inodeMin + ")\n";
+  }
+
+  chkDskSpace(__dirname).then((diskSpace) => {
+    // TODO: Don't bother checking if last 10 checks were OK?
+    // Send only once per day
+    // Send when fixed
+    if (diskSpace.free < diskMin || (iswin32 && inodeNums[1] < inodeMin)) {
+        //console.log(diskSpace)
+        if (app['lastEmail'] == false) {
+        app['lastEmail'] = true;
+        log("report(): Sending low disk email",'error');
+        let title = "URLWatcher low disk resources on " + config.app.hostname + " at " + (new Date()).toISOString();
+        let body =   "Disk Free:    " + diskSpace.free + " (min = " + diskMin + ")\n" 
+                   + "Disk Size:    " + diskSpace.size + "\n"
+                   + inodeMsg
+                   + "Will not write result file.";
+        email(config.app.emailStatusTo, title, body);
+      } else {
+        log("Not sending low disk email; already sent.");
+      }
+    } else {
+      if (app['lastEmail'] == true) {
+        app['lastEmail'] = false;
+        log("Disk issue fixed");
+        // TODO: Send email that problem fixed
+      }
+
+      let bodyChanged = false;
+      if (work.testFailures) {
+        bodyChanged = work.testFailures.includes("md5Changed") || work.testFailures.includes("lengthChanged") || work.testFailures.includes("bodyRegExp");
+      }
+
+      if (argv.debug || work.testFails > 0) {
+        if (bodyChanged == false || (work.headers && work.headers['content-type'].includes("text") == false)) {
+          log("Removing body from response file because it did not change or is not text.");
+          delete workClone.body;
+        }
+        log("Writing response file " + work.workFile);
+        if (!fs.existsSync(work.workDirectory)) {
+          mkdirp.sync(work.workDirectory);
+        }
+        fs.writeFileSync(work.workFile, JSON.stringify(workClone, null, 4));
+        log("Wrote response file " + work.workFile);
+      }
+    }
+  });
+}
+
 function server() {
 
-  var express = require('express');
-  var serveIndex = require('serve-index');
-  var app = express();
+  let express = require('express');
+  let serveIndex = require('serve-index');
+  let app = express();
+  //app.use(require('express-status-monitor')());
 
   // The following is a hack to make the links work in a serve-index
   // directory listing. serve-index always makes links in the
@@ -1056,7 +1074,6 @@ function server() {
 
   function sendfiles(dir, cb) {
     const fs = require('fs');
-
     fs.readdir(dir, (err, files) => {
       cb(files);
     })
@@ -1073,6 +1090,7 @@ function server() {
 }
 
 function log(msg, etype) {
+
   if (argv.debug == false && !['error','warning'].includes(etype)) {
     return;
   }
@@ -1080,9 +1098,9 @@ function log(msg, etype) {
   let msgo = (new Date()).toISOString() + " [urlwatcher] "
 
   // https://stackoverflow.com/a/37081135
-  var e = new Error();
-  var stack = e.stack.toString().split(/\r\n|\n/);
-  var line = stack[2].replace(/.*\//,"").replace(/:(.*):.*/,":$1");
+  let e = new Error();
+  let stack = e.stack.toString().split(/\r\n|\n/);
+  let line = stack[2].replace(/.*\//,"").replace(/:(.*):.*/,":$1");
   if (etype === 'error') {
     console.error(msgo + line + " " + clc.red(msg));
   } else if (etype === 'warning') {
