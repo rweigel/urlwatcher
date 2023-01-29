@@ -305,8 +305,9 @@ function geturl(testName) {
     test(testName, work);
   }
 
-  //let work = null;
-  let work = {};
+  // Setting to null somehow leads to less peak memory usage.
+  let work = null;
+  work = {};
   work.requestStartTime = new Date();
   
   let url = urlTests[testName].url;
