@@ -5,7 +5,7 @@
         "emailThreshold": 2,
         "url": "http://hapi-server.org/",
         "interval": 60000,
-        "testName": "",
+        "testName": "landing",
         "tests": {
             "timeout": 2000,
             "lengthChanged": true,

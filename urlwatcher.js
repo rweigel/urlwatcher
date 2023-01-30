@@ -102,6 +102,30 @@ dumpmem(true);
 // Start server for serving log files and plots.
 server();
 
+function publicURL(id, date) {
+
+  if (typeof(date) !== 'string') {
+    date = date.toISOString();
+  }
+
+  let ida = id.split("/");
+  let url = config.app.publicHTML 
+            + "#date=" 
+            + date.substring(0,10)
+            + "&"
+            + "category="
+            + ida[0]
+
+  if (ida.length > 0) {
+    url = url
+          + "&"
+          + "test="
+          + ida[1];    
+  }
+
+  return url;
+}
+
 function dumpmem(firstCall) {
 
   let ISOString = (new Date()).toISOString();
@@ -607,17 +631,8 @@ function test(testName, work) {
           + urlTests[testName].url 
           + "\n\n" 
           + work.emailBody.join("\n")
-        + "\n\nLast summary plot:\n  " 
-          + config.app.publicHTML 
-          + "#" 
-          + "date="
-          + requestDate 
-          + "&"
-          + "category="
-          + testName.split("/")[0]
-          + "&"
-          + "test="
-          + testName.split("/")[1];
+          + "\n\nLast summary plot:\n  " 
+          + publicURL(testName, requestDate)
 
     body = body
         + "\n\nSummary file:\n  " 
@@ -1038,7 +1053,9 @@ function server() {
   // this code must be updated. This is the method suggested by
   // https://github.com/expressjs/serve-index/issues/53
   app.use(function (req, res, next) {
-    req.originalUrl = "/urlwatcher" + req.url;
+    if (req.hostname !== 'localhost') {
+      req.originalUrl = "/urlwatcher" + req.url;
+    }
     next();
   })
 
@@ -1051,11 +1068,52 @@ function server() {
     res.sendFile(__dirname + '/html/index.htm');
   })
 
+  function addId(id, results) {
+    for (let idx in results) {
+      results[idx]['id'] = id;
+    }
+  }
+
+  app.get(/^\/status\/(.*)$/,
+    function(req, res) {
+      let results = [];
+      if (req.params[0] in urlTests) {
+        results = urlTests[req.params[0]]['results'];
+        addId(req.params[0], results);
+      } else {
+        let testIds = Object.keys(urlTests);
+        let prefix;
+        for (id of testIds) {
+          prefix = id.split("/")[0];
+          if (prefix === req.params[0]) {
+            addId(id, urlTests[id]['results']);
+            results.push(urlTests[id]['results']);
+          }
+        }
+        results = results.flat();
+      }
+
+      let status = [];
+      for (result of results) {
+        let requestStartTime = result["requestStartTime"].toISOString();
+        status.push({
+          "time": requestStartTime,
+          "id": result["id"],
+          "error": result["testError"],
+          "url": result["url"],
+          "log": publicURL(result["id"], requestStartTime)
+        })
+      }
+      resultsJSON = JSON.stringify(results,null,2);
+      res.setHeader("Content-Type", "application/json");
+      res.end(JSON.stringify(status,null,2) + "\n");
+  })
+
   let testNames = Object.keys(urlTests);
   app.get('/log/tests.json',
     function(req, res) {
       res.setHeader("Content-Type", "application/json");
-      res.end(JSON.stringify(testNames));
+      res.end(JSON.stringify(testNames)+"\n");
   })
 
   app.get(/^\/log\/(.*)\/log\/files\.json$/,
@@ -1068,7 +1126,7 @@ function server() {
       sendfiles(config.app.logDirectory + "/" + req.params[0] + "/log",
         function(files) {
           res.setHeader("Content-Type", "application/json");
-          res.end(JSON.stringify(files.reverse()));
+          res.end(JSON.stringify(files.reverse())+"\n");
         }
       );
   });
@@ -1138,3 +1196,5 @@ function exceptions(config) {
     }
   })
 }
+
+
