@@ -210,17 +210,20 @@ function plot(logFile, test, cb) {
 			console.log('clickevent(): Timezone offset = ' + off);
 		}
 		
-		console.log('clickevent(): Updating link to JSON test file');			
-		$('#testDataLink')
-			.css('background-color', 'yellow')
-			.attr('href',
-					'log/' + test + '/requests/' 
-					+ d.toISOString().replace("Z", "") + '.json');
-		$('#testDataSpan').show()
-
-		// Remove background color after 1000 ms.
-		setTimeout(() => {
-			$('#testDataLink').css('background-color','')}, 1000);
+    if (eventdata['points'][0]['data']['marker']['color'] == 'red') {
+			console.log('clickevent(): Updating link to JSON test file');			
+			$('#testDataLink')
+				.css('background-color', 'yellow')
+				.attr('href',
+						'log/' + test + '/requests/' 
+						+ d.toISOString().replace("Z", "") + '.json');
+			$('#testDataSpan').css('visibility','visible');
+			// Remove background color after 1000 ms.
+			setTimeout(() => {
+				$('#testDataLink').css('background-color','')}, 1000);
+    } else {
+			$('#testDataSpan').css('visibility','hidden');    	
+		}
 	}
 
 	let layouts = [];
