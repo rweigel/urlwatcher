@@ -300,6 +300,7 @@ function hashchange(evt) {
     let testSettingsMsg = "getDates.cb(): Getting test settings"; 
     timeit(testSettingsMsg);
     getJSON('log/' + test + '/settings.json', function (data) {
+      $('#testURL').attr('href',data['url']);
       timeit(testSettingsMsg, testSettingsMsg.replace('settings','too {}'));
       URLWatcher['settings'][test] = data;
       plot(logFile, test);

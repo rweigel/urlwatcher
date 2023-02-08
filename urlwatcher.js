@@ -11,7 +11,6 @@ const mkdirp      = require('mkdirp'); // Node 10 has native support for recursi
 const clc         = require('chalk');
 const yargs       = require('yargs');
 
-
 const ver  = parseInt(process.version.slice(1).split('.')[0]);
 if (ver < 6) {
   let msg = "node.js version >= 6 required. Version " + process.version + " is being used.";
@@ -78,13 +77,13 @@ for (let testName in urlTests) {
   // Write configuration file to web-accessible directory
   let msg = JSON.stringify(urlTests[testName], null, 4);
   fs.writeFile(settingsFile, msg,
-              (err) => {
-                  if (err) {
-                    log(err,'error');
-                  } else {
-                    log("Wrote " + settingsFile.replace(__dirname + "/", ""));
-                  }
-              });
+        (err) => {
+            if (err) {
+              log(err,'error');
+            } else {
+              log("Wrote " + settingsFile.replace(__dirname + "/", ""));
+            }
+        });
 
   // Reset email address.
   urlTests[testName]["emailAlertsTo"] = fullEmail;
@@ -1196,5 +1195,3 @@ function exceptions(config) {
     }
   })
 }
-
-
