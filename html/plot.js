@@ -212,15 +212,22 @@ function plot(logFile, test, cb) {
 		
     if (eventdata['points'][0]['data']['marker']['color'] == 'red') {
 			console.log('clickevent(): Updating link to JSON test file');			
-			$('#testDataLink')
-				.css('background-color', 'yellow')
-				.attr('href',
-						'log/' + test + '/requests/' 
-						+ d.toISOString().replace("Z", "") + '.json');
-			$('#testDataSpan').css('visibility','visible');
-			// Remove background color after 1000 ms.
-			setTimeout(() => {
-				$('#testDataLink').css('background-color','')}, 1000);
+      let href = 'log/' + test + '/requests/' 
+               + d.toISOString().replace("Z", "") + '.json';
+      if (true) {
+        //getJSON(href, (json) => {
+        //  console.log(json['emailBody']);
+        //})
+        window.open(href,'_blank');
+      } else {
+        $('#testDataLink')
+          .css('background-color', 'yellow')
+          .attr('href', href);
+        $('#testDataSpan').css('visibility','visible');
+        // Remove background color after 1000 ms.
+        setTimeout(() => {
+          $('#testDataLink').css('background-color','')}, 1000);
+      }
     } else {
 			$('#testDataSpan').css('visibility','hidden');    	
 		}
