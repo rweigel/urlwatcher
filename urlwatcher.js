@@ -93,7 +93,7 @@ for (let testName in urlTests) {
 
   // Start test process
   log("Starting first test for " + testName);
-  //geturl(testName);
+  geturl(testName);
 }
 
 dumpmem(true);
