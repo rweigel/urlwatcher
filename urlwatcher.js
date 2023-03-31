@@ -93,7 +93,7 @@ for (let testName in urlTests) {
 
   // Start test process
   log("Starting first test for " + testName);
-  geturl(testName);
+  //geturl(testName);
 }
 
 dumpmem(true);
@@ -479,6 +479,7 @@ function test(testName, work) {
   for (let checkName in urlTests[testName].tests) {
 
     if (checkName === "__comment") continue;  
+    if (urlTests[testName][checkName] === false) continue;
 
     if (checkName === "timeout") {
       if (results[L-1][checkName] == true) {
@@ -533,7 +534,6 @@ function test(testName, work) {
 
     }
       if (checkName === "md5Changed" && results[L-1]["body"] != undefined) {
-      //if (!urlTests[testName][checkName]) continue;
       if (L > 1) {
         if (results[L-1].bodyMD5 != results[L-2].bodyMD5 && results[L-2]["bodyLength"] != -1) {
           work.testFailures.push(checkName);
@@ -1051,7 +1051,15 @@ function server() {
   // this app is served on the proxy changes from "/urlwatcher",
   // this code must be updated. This is the method suggested by
   // https://github.com/expressjs/serve-index/issues/53
+  // In the following it is assumed the app is served from
+  // http://server/urlwatcher. 
+  // TODO: Create fork of server-index and make fix there. The fix should
+  // only involve removing a leading slash so paths are not relative to the
+  // server root.
   app.use(function (req, res, next) {
+    if (req['headers'].referer) {
+      req.originalUrl = "/urlwatcher" + req.url;
+    }
     if (req.hostname !== 'localhost') {
       req.originalUrl = "/urlwatcher" + req.url;
     }
