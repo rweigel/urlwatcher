@@ -10,16 +10,15 @@ sendmail({
     subject: process.argv[4],
     html: process.argv[5],
   }, function(err, reply) {
-        if (err) {
-            console.error(err);
-            console.error(err.stack);
-	} else {
-            //console.log(reply);
-	}
+    if (err) {
+      console.error("Sendmail error for mail to ubuntu@localhost. Server error:");
+      console.error(err);
+    } else {
+      //console.log(reply);
+    }
 });
 
-
-if (1) {
+if (0) {
     const sendmail = require('sendmail')()
     sendmail({
     to: process.argv[2],
@@ -27,11 +26,13 @@ if (1) {
     subject: process.argv[4],
     html: process.argv[5],
   }, function(err, reply) {
-  	if (err) {
-	    console.error('error:');
-  	} else {
-	    console.log(reply);
-	}
+    if (err) {
+      console.error('Sendmail error for mail to ' + process.argv[2] + ". Server error:");
+      console.error(err);
+    } else {
+      console.error('Sendmail success for mail to ' + process.argv[2] + ". Server reply:");
+      console.log(reply);
+    }
 });
 }
 

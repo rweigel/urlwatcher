@@ -193,12 +193,12 @@ function readTests() {
       urlTests = JSON.parse(urlTestsFileBlob);
     } catch (e) {
       log("Could not JSON parse " + urlTestsFileName + ". Exiting.",'error');
-      process.exit(1);        
+      process.exit(1);
     }
     log("Read " + urlTestsFileName);
   } else {
     log("File " + urlTestsFile + " not found. Exiting.",'error');
-    process.exit(1);  
+    process.exit(1);
   }
 
   // TODO: Create JSON schema for test file and validate.
@@ -213,9 +213,9 @@ function readTests() {
       let fname = __dirname + "/" + urlTests[testName];
       log("Reading and parsing\n  " + fname);
       if (!fs.existsSync(fname)) {
-        let msg = "File " + fname + " referenced in " + urlTestsFile + " not found. Exiting.";
-        log(msg,'error');  
-        process.exit(1);        
+        let msg = "File " + fname + " referenced in " + urlTestsFileName + " not found. Exiting.";
+        log(msg,'error');
+        process.exit(1);
       }
       let tmp = fs.readFileSync(fname);
       try {
@@ -479,7 +479,10 @@ function test(testName, work) {
   for (let checkName in urlTests[testName].tests) {
 
     if (checkName === "__comment") continue;  
-    if (urlTests[testName][checkName] === false) continue;
+    if (urlTests[testName]["tests"][checkName] === false) {
+      fails--;
+      continue;
+    }
 
     if (checkName === "timeout") {
       if (results[L-1][checkName] == true) {
@@ -854,11 +857,11 @@ function email(to, subject, text, cb) {
     });
 
     ls.stderr.on('data', (data) => {
-      console.error(`spawn stderr:\n${data}`);
+      //console.error(`spawn stderr:\n  ${data}`);
     });
 
     ls.on('close', (code) => {
-      console.log(`spawn exited with code ${code}`);
+      //console.log(`spawn exited with code ${code}`);
       if (cb) {
         log("Executing callback.")
         cb();
@@ -1022,7 +1025,7 @@ function writeResponseFile(work) {
       }
 
       if (argv.debug || work.testFails > 0) {
-        if (bodyChanged == false || (work.headers && work.headers['content-type'].includes("text") == false)) {
+        if (bodyChanged == false || (work.headers && work.headers['content-type'] && work.headers['content-type'].includes("text") == false)) {
           log("Removing body from response file because it did not change or is not text.");
           delete workClone.body;
         }
@@ -1191,12 +1194,12 @@ function exceptions(config) {
   })
   process.on('uncaughtException', function(err) {
     log('Uncaught exception: ','error');
-    log(err,'error');
+    log(err.stack,'error');
     if (config.app.emailStatus) {
       email(config.app.emailStatusTo, "URLWatcher exception on " 
         + config.app.hostname 
         + " at " 
-        + (new Date()).toISOString(), err.message);
+        + (new Date()).toISOString(), err.stack);
       log('Sent email to ' + config.app.emailStatusTo,'error');
     } else {    
       log('Not sending email b/c emailStatus = false.','error');
