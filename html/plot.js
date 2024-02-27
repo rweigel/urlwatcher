@@ -254,7 +254,7 @@ function plot(logFile, test, cb) {
     getJSON(href, (json) => {
       console.log("plotly_hover(): Getting hover data.")
       //console.log(json['emailBodyList'].join("\n"))
-      plotly_hover.hovered[href] = json['emailBodyList'].join("\n");
+      plotly_hover.hovered[href] = json['emailBodyList'].join("\n") + "\nClick bar to open JSON file."
       $("#hoverinfo").text(plotly_hover.hovered[href]).show();
     })
   };
