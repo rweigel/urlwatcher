@@ -76,29 +76,25 @@ function plot(logFile, test, cb) {
       let keys = Object.keys(current);
       for (let key in keys) {
         if (current[keys[key]] === plotly_relayout.last[keys[key]]) {
-          console.log('Value of ' 
-                  + keys[key] 
-                  + ' in current matches that in last');
+          console.log(`Value of ${keys[key]} in current matches that in last`);
         } else {
-          console.log('Value of ' 
-                + keys[key] 
-                  + ' in current does not match that in last');
+          console.log(`Value of ${keys[key]} in current does not match that in last`);
           update = true;
           break;
         }
       }
-      if (!update) {				
+      if (!update) {
         console.log('plotly_relayout(): Relayout already called with'
-              + ' same event data. No relayout will be performed.');
+                  + ' same event data. No relayout will be performed.');
         return;
       } else {
         console.log('plotly_relayout(): ' 
-              + 'Updating plotly_relayout.last = current');
+                  + 'Updating plotly_relayout.last = current');
         plotly_relayout.last = current;
-      }				
+      }
     } else {
       console.log('plotly_relayout(): Setting undefined plotly_relayout.last '
-            + 'to plotly_relayout.current');
+                + 'to plotly_relayout.current');
       plotly_relayout.last = current;
     }
 
@@ -232,10 +228,10 @@ function plot(logFile, test, cb) {
 
   function plotly_hover(event) {
 
-    console.log("plotly_hover(): Called.")
+    //console.log("plotly_hover(): Called.")
     if (event['points'][0]['data']['marker']['color'] !== 'red') {
       //console.log("plotly_hover(): Color not red. Returning.")
-      //return;
+      return;
     }
 
     let d = new Date(event['points'][0]['x'].replace(" ","T"));
@@ -260,7 +256,7 @@ function plot(logFile, test, cb) {
   };
 
   function plotly_unhover(data) {
-    console.log("plotly_unhover(): Called.")
+    //console.log("plotly_unhover(): Called.")
     $("#hoverinfo").empty().hide();
   };
 

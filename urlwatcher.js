@@ -48,6 +48,10 @@ exceptions(config);
 
 config.app.hostname = config.app.hostname || os.hostname();
 
+if (!fs.existsSync(config.app.logDirectory + '/_memory/')) {
+  mkdirp.sync(config.app.logDirectory + '/_memory/');
+}
+
 let urlTests = readTests();
 
 if (config.app.emailStatus) {
@@ -95,6 +99,17 @@ for (let testName in urlTests) {
   geturl(testName);
 }
 
+let testNames = Object.keys(urlTests);
+let testObj = {};
+for (id of Object.keys(urlTests)) {
+  let testCategory = id.split("/")[0];
+  let testComponent = id.split("/")[1];
+  if (!testObj[testCategory]) {
+    testObj[testCategory] = [];
+  }
+  testObj[testCategory].push(testComponent);
+}
+
 dumpmem(true);
 
 // Start server for serving log files and plots.
@@ -137,32 +152,8 @@ function server() {
   app.get('/log/tests.json',
     function(req, res) {
       res.setHeader("Content-Type", "application/json");
-      res.end(JSON.stringify(Object.keys(urlTests),null,2) + "\n");
-  });
-
-  let testNames = Object.keys(urlTests);
-  let testObj = {};
-  for (id of Object.keys(urlTests)) {
-    let testCategory = id.split("/")[0];
-    let testComponent = id.split("/")[1];
-    if (!testObj[testCategory]) {
-      testObj[testCategory] = [];
-    }
-    testObj[testCategory].push(testComponent);
-  }
-
-  app.get('/log/tests.json',
-    function(req, res) {
-      res.setHeader("Content-Type", "application/json");
       res.end(JSON.stringify(testObj,null,2) + "\n");
   });
-
-  function sendfiles(dir, cb) {
-    const fs = require('fs');
-    fs.readdir(dir, (err, files) => {
-      cb(files);
-    })
-  }
 
   app.get(/^\/log\/(.*)\/log\/files\.json$/,
     function(req, res) {
@@ -171,7 +162,7 @@ function server() {
         res.sendStatus(400);
         return;
       }
-      sendfiles(config.app.logDirectory + "/" + req.params[0] + "/log",
+      dirList(config.app.logDirectory + "/" + req.params[0] + "/log",
         function(files) {
           res.setHeader("Content-Type", "application/json");
           res.end(JSON.stringify(files.reverse())+"\n");
@@ -263,7 +254,7 @@ function report(testName, work) {
 
   log("Wrote '" + testName + "' entry: " + entry.trim());
 
-  writeResponseFile(work);
+  writeResponseFile(work, testName);
 
   // Re-read test file on each iteration?
   try {
@@ -273,14 +264,10 @@ function report(testName, work) {
   }
 
   // Queue next test on testName
-  setTimeout(
-    function () {
-      geturl(testName);
-    },
-    urlTests[testName].interval);
-}
+  setTimeout(() => {geturl(testName)}, urlTests[testName].interval)}
 
-function geturl(testName) {
+
+  function geturl(testName) {
 
   function urlError(error, work) {
     if (error.hasOwnProperty("code")) {
@@ -711,12 +698,18 @@ function test(testName, work) {
                       + config.app.hostname + " @ " + requestTime;
     email(work);
   }
-
   report(testName, work);
 }
 
 
 // Misc functions
+
+function dirList(dir, cb) {
+  const fs = require('fs');
+  fs.readdir(dir, (err, files) => {
+    cb(files);
+  })
+}
 
 function trimAbsolutePaths(results) {
   if (!Array.isArray(results)) results = [results];
@@ -729,7 +722,7 @@ function trimAbsolutePaths(results) {
   }
 }
 
-function writeResponseFile(work) {
+function writeResponseFile(work, testName) {
 
   // Remove absolute paths from strings.
   let workClone = JSON.parse(JSON.stringify(work));
@@ -775,23 +768,36 @@ function writeResponseFile(work) {
         // TODO: Send email that problem fixed
       }
 
-      let bodyChanged = false;
-      if (work.testFailures) {
-        bodyChanged = work.testFailures.includes("md5Changed") || work.testFailures.includes("lengthChanged") || work.testFailures.includes("bodyRegExp");
+      if (!fs.existsSync(work.workDirectory)) {
+        mkdirp.sync(work.workDirectory);
       }
 
-      if (argv.debug || work.testFails > 0) {
-        if (bodyChanged === false || (work.headers && work.headers['content-type'] && work.headers['content-type'].includes("text") == false)) {
-          log("Removing body from response file because it did not change or is not text.");
-          delete workClone.body;
+      function prepLasts(condition) {
+        let bodyFileName = workClone.workFile.replace(".json",".body.json");
+        let lastBody = "last" + condition + "Body";
+        let lastFile = "last" + condition + "BodyFile";
+        if (urlTests[testName][lastBody] && urlTests[testName][lastBody] === JSON.stringify(work.body)) {
+          log("Failing body has not changed since last fail.");
+          //fs.symlinkSync(urlTests[testName][lastFile], bodyFileName);
+          workClone["bodyFile"] = urlTests[testName][lastFile];
+        } else {
+          urlTests[testName][lastBody] = JSON.stringify(work.body);
+          urlTests[testName][lastFile] = bodyFileName;
+          workClone["bodyFile"] = bodyFileName;
+          fs.writeFileSync(bodyFileName, JSON.stringify(work.body, null, 4));
+          log("Wrote body file: " + bodyFileName);
         }
-        log("Writing response file " + work.workFile);
-        if (!fs.existsSync(work.workDirectory)) {
-          mkdirp.sync(work.workDirectory);
-        }
-        fs.writeFileSync(work.workFile, JSON.stringify(workClone, null, 4));
-        log("Wrote response file " + work.workFile);
       }
+      delete workClone["body"];
+      let bodyFile;
+      if (work.testError) {
+        bodyFile = prepLasts("Fail");
+      } else {
+        bodyFile = prepLasts("Pass");
+      }
+      log("Writing response file " + work.workFile);
+      fs.writeFileSync(work.workFile, JSON.stringify(workClone, null, 4));
+      log("Wrote response file: " + work.workFile);
     }
   });
 }
@@ -918,7 +924,7 @@ function dumpmem(firstCall) {
 
   let ISOString = (new Date()).toISOString();
   let YMD = ISOString.substr(0,10);
-  let fileName = config.app.logDirectory + '/urlwatcher-memory-' + YMD + '.txt';
+  let fileName = config.app.logDirectory + '/_memory/urlwatcher-memory-' + YMD + '.txt';
   let logStr = ISOString;
 
   if (firstCall) {

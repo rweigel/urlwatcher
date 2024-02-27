@@ -1,7 +1,6 @@
 let URLWatcher = 
   {
     'displayLocalTime': true, // Time stamps in local time
-    'dropdowns': {},
     'lastClicked': '',
     'settings': {},
     'plots':
@@ -129,18 +128,22 @@ $(document).ready(() => {
         console.log("#" + item + "Dropdown.change(): Not updating hash "
                   + " because event not triggered by user interaction.");
       }
-    })    
+    });
   })
 
   // hashchange() is the main app initialization and update function
   $(window).on('hashchange', hashchange)
 
   // Start processing
-  getTests(() => {
-    console.log("main(): Test list loaded. Triggering hashchange.");
-    $(window).trigger('hashchange');
-  })
-})
+  getJSON('log/tests.json',
+    (testsJSON) => {
+      URLWatcher['categories'] = testsJSON;
+      console.log(URLWatcher['categories']);
+      console.log("main(): Test list loaded. Triggering hashchange.");
+      $(window).trigger('hashchange');
+  });
+
+});
 
 // Similar to console.time(), but more flexibiity in log messages.
 function timeit(start, stop) {
@@ -157,7 +160,7 @@ function timeit(start, stop) {
     delete timeit[start];
   } else {
     timeit[start] = new Date().getTime();
-    console.log(start);       
+    console.log(start);
   }
 }
 
@@ -189,7 +192,7 @@ function hashchange(evt) {
     // sets hashchange.selfTrigger = true. This prevents
     // that hash change from causing recursive hashchanges.
     hashchange.selfTrigger = false;
-    return;     
+    return;
   }
 
   console.log('hashchange(): window.hashchange event: Hash changed.');
@@ -205,36 +208,26 @@ function hashchange(evt) {
     category = Object.keys(URLWatcher['categories'])[0];
   }
 
-  let tests = Object.keys(URLWatcher['dropdowns']);
-  let test = getHashValue('test');
-  let test_path = category + "/" + test;
-  if (!test || (!tests.includes(test_path))) {
-    test = URLWatcher['categories'][category][0];
+  let categorySelected = getHashValue('category');
+  let testSelected = getHashValue('test');
+  let categories = Object.keys(URLWatcher['categories']);
+  let tests = URLWatcher['categories'][categorySelected];
+  let test = testSelected;
+  if (!testSelected || !tests.includes(testSelected)) {
+    //alert('Invalid test. Resetting to default.');
+    tests = URLWatcher['categories'][categorySelected];
+    test = URLWatcher['categories'][categorySelected][0];
   }
 
-  $('#testDropdown').empty();
-  URLWatcher['categories'][category].forEach(function(item, i) {
-    $('#testDropdown').append($('<option></option>').val(item).html(item));
+  $('#categoryDropdown').empty();
+  categories.forEach(function(item, i) {
+    $('#categoryDropdown').append($('<option></option>').val(item).html(item));
   })
 
-
-  if (false) {
-    if (test) {
-      if (tests.indexOf(test) == -1) {
-        alert("hashchange(): window.hashchange: " 
-            + test + " is not in list of available tests: " 
-            + tests.join(",") + ".");
-        test = tests[0];
-      }
-    } else {
-      console.log('hashchange(): window.hashchange: No test in hash. '
-              +' Setting to first test in list.');
-      test = tests[0];
-    }
-  }
-
-  console.log('hashchange(): Clearing plots.');
-  //$('#plots').html('');
+  $('#testDropdown').empty();
+  tests.forEach(function(item, i) {
+    $('#testDropdown').append($('<option></option>').val(item).html(item));
+  })
 
   hashchange.selfTrigger = true;
   setHashValue('category', category);
@@ -246,9 +239,8 @@ function hashchange(evt) {
   test = category + "/" + test;
 
   // Get available dates for selected test
-  getDates(test, function() {
+  getDates(test, function(dates) {
 
-    let dates = URLWatcher['dropdowns'][test];
     let date = getHashValue("date");
     if (date) {
       if (dates.indexOf(date) == -1) {
@@ -257,14 +249,12 @@ function hashchange(evt) {
               + " is not in list of available tests: " 
               + dates.join(",") + ".");
         alert('Invalid date. Resetting to default.')
-        date = URLWatcher['dropdowns'][test][0];
-        setHashValue('date', date);
+        setHashValue('date', dates[0]);
         return;
       }
     } else {
-      console.log('getDates().cb(): No date in hash. '
-            + 'Setting to first test in list.');
-      date = URLWatcher['dropdowns'][test][0];
+      console.log('getDates().cb(): No date in hash. Setting to first test in list.');
+      date = date[0];
     }
 
     hashchange.selfTrigger = true;
@@ -311,22 +301,19 @@ function hashchange(evt) {
         clearInterval(hashchange.interval);
         }
 
-        var lastDate = "";       
+        var lastDate = "";
         hashchange.interval = setInterval(() => {
         // If date changes, change plot to show current data
         let nowDate = new Date().toISOString();
         nowDate = nowDate.substr(0,10);
         if (lastDate !== nowDate) {
-            setHashValue('date', nowDate);      
+          setHashValue('date', nowDate);
         }
-        lastDate = nowDate;      
-        $.ajax({
-                  type: "HEAD",
-                  async: true,
-                  url: logFile,
-        }).done(function(message,text,jqXHR){
+        lastDate = nowDate;
+        $.ajax({type: "HEAD", async: true, url: logFile})
+          .done(function(message,text,jqXHR){
             console.log("---------------------");
-                  console.log(jqXHR.getResponseHeader('last-modified'));
+            console.log(jqXHR.getResponseHeader('last-modified'));
             if ("logLastModified" in hashchange && logFile in hashchange.logLastModified) {
             last = hashchange.logLastModified[logFile];
             now = jqXHR.getResponseHeader('last-modified');
@@ -411,49 +398,22 @@ function getJSON(file, cb) {
   req.send(); 
 }
 
-// Download list of tests
-function getTests(cb) {
-  getJSON('log/tests.json', function (data) {
-
-    let categories = {};
-    $.each(data, function (i, p) {
-      // Will store all dates available
-
-      URLWatcher['dropdowns'][data[i]] = [];
-
-      var tmp = p.split("/");
-      if (tmp.length > 1) {
-        if (!categories[tmp[0]]) {
-          categories[tmp[0]] = [tmp.slice(1).join("/")];
-          $('#categoryDropdown').append($('<option></option>').val(tmp[0]).html(tmp[0]));
-        } else {
-          categories[tmp[0]].push(tmp.slice(1).join("/"));
-        }
-      }
-    })
-    URLWatcher['categories'] = categories;
-    console.log(URLWatcher['categories'])
-    cb();
-  })
-}
-
 // Download available dates for test
 function getDates(test, cb) {
-
+  ///URLWatcher['dropdowns'][test] = {}
   $('#dateDropdown').html('');
-  getJSON('log/' + test + '/log/files.json', function (data) {
-    console.log(data);
-    let file;
-    // Set drop-down values.
-    $.each(data, function (i, p) {
-      file = p.replace(".csv", "");
-      URLWatcher['dropdowns'][test][i] = file;
-      $('#dateDropdown')
-        .append($('<option></option>')
-          .val(file)
-          .html(file));
-    })
-    $('#dateDropdown').show();
-    cb();
-  })
+  getJSON('log/' + test + '/log/files.json', 
+    function (data) {
+      console.log(data)
+      let files = [];
+      // Set drop-down values.
+      $.each(data, function (i, p) {
+        let file = p.replace(".csv", "");
+        files.push(file);
+        $('#dateDropdown').append($('<option></option>').val(file).html(file));
+      });
+      //console.log(URLWatcher['dropdowns'])
+      $('#dateDropdown').show();
+      cb(files);
+  });
 }
