@@ -33,6 +33,16 @@ a:visited {
 #testDropdown, #displayDropdown, #logDirectory, #testSettings, #testDataSpan {
 }
 
+#hoverinfo {
+    position: absolute;
+    z-index: 99;
+    background-color: white;
+    font-size: 12px;
+    border: 1px solid black;
+    padding: 0.5em;
+    display: none;
+}
+
 #help {
     width:1em;
     height:1em;

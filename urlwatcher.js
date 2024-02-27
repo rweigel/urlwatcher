@@ -76,14 +76,13 @@ for (let testName in urlTests) {
 
   // Write configuration file to web-accessible directory
   let msg = JSON.stringify(urlTests[testName], null, 4);
-  fs.writeFile(settingsFile, msg,
-        (err) => {
-            if (err) {
-              log(err,'error');
-            } else {
-              log("Wrote " + settingsFile.replace(__dirname + "/", ""));
-            }
-        });
+  fs.writeFile(settingsFile, msg, (err) => {
+    if (err) {
+      log(err,'error');
+    } else {
+      log("Wrote " + settingsFile.replace(__dirname + "/", ""));
+    }
+  });
 
   // Reset email address.
   urlTests[testName]["emailAlertsTo"] = fullEmail;
@@ -101,172 +100,138 @@ dumpmem(true);
 // Start server for serving log files and plots.
 server();
 
-function publicURL(id, date) {
+function server() {
 
-  if (typeof(date) !== 'string') {
-    date = date.toISOString();
-  }
+  let express = require('express');
+  let serveIndex = require('serve-index');
+  let app = express();
+  //app.use(require('express-status-monitor')());
 
-  let ida = id.split("/");
-  let url = config.app.publicHTML 
-            + "#date=" 
-            + date.substring(0,10)
-            + "&"
-            + "category="
-            + ida[0]
-
-  if (ida.length > 0) {
-    url = url
-          + "&"
-          + "test="
-          + ida[1];    
-  }
-
-  return url;
-}
-
-function dumpmem(firstCall) {
-
-  let ISOString = (new Date()).toISOString();
-  let YMD = ISOString.substr(0,10);
-  let fileName = config.app.logDirectory + '/urlwatcher-memory-' + YMD + '.txt';
-  let logStr = ISOString;
-
-  if (firstCall) {
-    for (const [key,value] of Object.entries(process.memoryUsage())) {
-       logStr = logStr + "," + key;
+  // Work-around of https://github.com/expressjs/serve-index/issues/90
+  app.use(function (req, res, next) {
+    //console.log("Initial req.originalUrl:     " + req.originalUrl);
+    //console.log("Initial req.headers.referer: " + req['headers'].referer);
+    //console.log("Initial req.hostname: " + req.hostname);
+    //console.log(req.headers)
+    if (req['headers'].referer) {
+      req.originalUrl = "/urlwatcher" + req.url;
     }
-
-    fs.appendFile(fileName, "----\n" + logStr + "\n", function (err) {
-     if (err) throw err;
-    });
-    return;
-  }
-
-  for (const [key,value] of Object.entries(process.memoryUsage())) {
-      logStr = logStr + "," + parseInt(value/1000000);
-  }
-  fs.appendFile(fileName, logStr + "\n", function (err) {
-    if (err) throw err;
+    if (req.hostname !== 'localhost') {
+      req.originalUrl = "/urlwatcher" + req.url;
+    }
+    //console.log("Final req.originalUrl: " + req.originalUrl);
+    next();
   });
-}
 
-function readConfig(configFile) {
-  // Read configuration file
-  if (fs.existsSync(configFile)) {
-    let tmp = fs.readFileSync(configFile);
-    var config = JSON.parse(tmp);
-    log("Read " + configFile);
-  } else {
-    // Allow app to start even if email configuration file not found.
-    log("File " + configFile + " not found. Exiting.", 'error');
-    process.exit(1);
-  }
+  app.use('/html', express.static(__dirname + '/html'));
+  app.use('/html', serveIndex(__dirname + '/html', {icons: true, view: 'details'}));
+  app.use('/log', express.static(config.app.logDirectory));
+  app.use('/log', serveIndex(config.app.logDirectory, {icons: true, view: 'details'}));
+  app.use('/log/', express.static(config.app.logDirectory));
+  app.use('/log/', serveIndex(config.app.logDirectory, {icons: true, view: 'details'}));
 
-  if (!config.app.emailMethod) {
-    config.app.emailMethod = null;
-  }
-  let emailMethods = [null, "sendmail", "nodemailer","spawn"];
-  if (!emailMethods.includes(config.app.emailMethod)) {
-    log("readConfig(): config.app.emailMethod must be one of: " + emailMethods.join(","), 'error');
-    process.exit(1);
-  }
+  app.get('^/$', function(req, res) {
+    res.sendFile(__dirname + '/html/index.htm');
+  });
 
-  // Create log directory if it does not exist
-  config.app.logDirectory = __dirname + "/" + config.app.logDirectory;
-  if (!fs.existsSync(config.app.logDirectory)) {
-    mkdirp.sync(config.app.logDirectory);
-    log("Created log directory " + config.app.logDirectory);
-  }
-  return config;
-}
+  app.get('/log/tests.json',
+    function(req, res) {
+      res.setHeader("Content-Type", "application/json");
+      res.end(JSON.stringify(Object.keys(urlTests),null,2) + "\n");
+  });
 
-function readTests() {
-
-  // Read URL test file
-  let urlTestsFileName = __dirname + "/" + config.app.urlTestsFile;
-  let urlTests;
-  if (fs.existsSync(urlTestsFileName)) {
-    let urlTestsFileBlob = fs.readFileSync(urlTestsFileName);
-    log("Reading " + urlTestsFileName);
-    try {
-      urlTests = JSON.parse(urlTestsFileBlob);
-    } catch (e) {
-      log("Could not JSON parse " + urlTestsFileName + ". Exiting.",'error');
-      process.exit(1);
+  let testNames = Object.keys(urlTests);
+  let testObj = {};
+  for (id of Object.keys(urlTests)) {
+    let testCategory = id.split("/")[0];
+    let testComponent = id.split("/")[1];
+    if (!testObj[testCategory]) {
+      testObj[testCategory] = [];
     }
-    log("Read " + urlTestsFileName);
-  } else {
-    log("File " + urlTestsFile + " not found. Exiting.",'error');
-    process.exit(1);
+    testObj[testCategory].push(testComponent);
   }
 
-  // TODO: Create JSON schema for test file and validate.
-  // TODO: Make urlTests an array instead of an object. 
+  app.get('/log/tests.json',
+    function(req, res) {
+      res.setHeader("Content-Type", "application/json");
+      res.end(JSON.stringify(testObj,null,2) + "\n");
+  });
 
-  // Replace references to files with content of file.
-  for (let testName in urlTests) {
-    if (typeof(urlTests[testName]) !== "string") {
-      urlTests[testName + "/" + urlTests[testName]['testName']] = JSON.parse(JSON.stringify(urlTests[testName]));
-      delete urlTests[testName];
-    } else {
-      let fname = __dirname + "/" + urlTests[testName];
-      log("Reading and parsing\n  " + fname);
-      if (!fs.existsSync(fname)) {
-        let msg = "File " + fname + " referenced in " + urlTestsFileName + " not found. Exiting.";
-        log(msg,'error');
-        process.exit(1);
-      }
-      let tmp = fs.readFileSync(fname);
-      try {
-        tmp = JSON.parse(tmp);
-      } catch (e) {
-        log("Could not JSON parse " + fname + ". Exiting.",'error');
-        process.exit(1);        
-      }
+  function sendfiles(dir, cb) {
+    const fs = require('fs');
+    fs.readdir(dir, (err, files) => {
+      cb(files);
+    })
+  }
 
-      delete urlTests[testName];
-      if (Array.isArray(tmp)) {
-        let k = 1;
-        for (let i = 0; i < tmp.length; i++) {
-          if ('testName' in tmp[i]) {
-            urlTests[testName + "/" + tmp[i]['testName']] = tmp[i];
-          } else {
-            urlTests[testName + "/" + k] = tmp[i];
-            k = k + 1;
+  app.get(/^\/log\/(.*)\/log\/files\.json$/,
+    function(req, res) {
+      log("Request for " + req.params[0] + "/log/files.json");
+      if (!testNames.includes(req.params[0])) {
+        res.sendStatus(400);
+        return;
+      }
+      sendfiles(config.app.logDirectory + "/" + req.params[0] + "/log",
+        function(files) {
+          res.setHeader("Content-Type", "application/json");
+          res.end(JSON.stringify(files.reverse())+"\n");
+        }
+      );
+  });
+
+  app.get(/^\/status\/(.*)$/,
+    function(req, res) {
+      // req.params[0] is the part of the URL that matches the regex in app.get()
+      let requestedId = req.params[0];
+      requestedCategory = requestedId.split("/")[0];
+      //console.log("requestedCategory: " + requestedCategory)
+      requestedComponent = requestedId.split("/")[1];
+      //console.log("requestedComponent: " + requestedComponent);
+      //console.log("urlTests:");
+      //console.log(urlTests);
+      let results = {};
+      let found = false;
+      if (requestedId in urlTests) {
+        found = true;
+        // If exact match to a test id, return results for that test.
+        // e.g. /status/CDAWeb/landing
+        results['tests'] = urlTests[requestedId]['tests'];
+        results['results'] = urlTests[requestedId]['results'];
+        //console.log(urlTests[requestedId]['results'])
+        trimAbsolutePaths(results['results']);
+      } else if (!requestedComponent) {
+        // Not an exact match. Return all results for tests with id that
+        // starts with req.params[0]. e.g., /status/CDAWeb
+        results[requestedCategory] = {};
+        for (id of Object.keys(urlTests)) {
+          let testCategory = id.split("/")[0];
+          let testComponent = id.split("/")[1];
+          if (testCategory === requestedCategory) {
+            console.log("testCategory: " + testCategory)
+            found = true;
+            results[testCategory][testComponent] = {};
+            results[testCategory][testComponent]['tests'] = urlTests[id]['tests'];
+            results[testCategory][testComponent]['results'] = urlTests[id]['results'];
+            trimAbsolutePaths(results[testCategory][testComponent]['results']);
           }
         }
       }
-    }
-  }
-
-  for (let testName in urlTests) {
-
-    // Remove documentation nodes
-    delete urlTests[testName]["__comment"];
-    delete urlTests[testName]["tests"]["__comment"];
-
-    urlTests[testName]["emailThreshold"] = urlTests[testName]["emailThreshold"] || 1;
-
-    if (urlTests[testName]['emailAlerts']) {
-      let a = urlTests[testName]['emailAlertsTo'];
-      let b = urlTests[testName]['emailAlertsTo'] === '!!!!';
-      if (!a || b) {
-        log("emailAlerts = true and emailAlertsTo not given in test " + testName + ". Exiting.",'error');
-        process.exit(1);
+      if (found) {
+        res.setHeader("Content-Type", "application/json");
+        res.send(JSON.stringify(results,null,2));
+      } else {
+        res.sendStatus(404);
       }
-    }
-    // Create array to store past results.
-    if (readTests.urlTestsLast && readTests.urlTestsLast[testName]) {
-      urlTests[testName]["results"] = readTests.urlTestsLast[testName]["results"];
+  });
+
+  let server = app.listen(config.app.serverPort, function (err) {
+    if (err) {
+      log(err,'error');
+      process.exit(1);
     } else {
-      urlTests[testName]["results"] = [];
+      log("Server is listening on port " + config.app.serverPort);
     }
-
-  }
-
-  readTests.urlTestsLast = urlTests;
-  return urlTests;
+  });
 }
 
 function report(testName, work) {
@@ -278,19 +243,13 @@ function report(testName, work) {
   }
 
   let entry = new Date(work.requestStartTime).toISOString() 
-          + ","
-          + statusCode
-          + ","
-          + round(work.timingPhases.firstByte)
-          + "," 
-          + round(work.timingPhases.download)
-          + "," 
-          + round(work.timingPhases.total)
-          + "," 
-          + work.bodyLength
-          + "," 
-          + work.testFails
-          + "\n";
+            + "," + statusCode
+            + "," + round(work.timingPhases.firstByte)
+            + "," + round(work.timingPhases.download)
+            + "," + round(work.timingPhases.total)
+            + "," + work.bodyLength
+            + "," + work.testFails
+            + "\n";
 
   // Append entry to entry file in directory named TestName + "log"
   if (!fs.existsSync(work.entryDirectory)) {
@@ -314,7 +273,11 @@ function report(testName, work) {
   }
 
   // Queue next test on testName
-  setTimeout(function () {geturl(testName)}, urlTests[testName].interval);
+  setTimeout(
+    function () {
+      geturl(testName);
+    },
+    urlTests[testName].interval);
 }
 
 function geturl(testName) {
@@ -332,7 +295,7 @@ function geturl(testName) {
   let work = null;
   work = {};
   work.requestStartTime = new Date();
-  
+
   let url = urlTests[testName].url;
   work.url = url;
   if (url.match(/^http/)) {
@@ -423,22 +386,7 @@ function geturl(testName) {
     .connect();
   } else {
     log("Protocol" + url.replace(/^(.*)\:.*/,"$1") + " is not supported.",'error');
-  } 
-}
-
-function computeDirNames(testName, work) {
-
-  let timeStamp = new Date(work.requestStartTime).toISOString().replace(/Z/g,'');
-  work.workDirectory = config.app.logDirectory + "/" + testName + "/requests";
-  work.workFile = work.workDirectory + "/" + timeStamp + ".json";
-
-  let ymd = new Date(work.requestStartTime).toISOString().replace(/T.*/,"");
-  work.entryDirectory = config.app.logDirectory + "/" + testName + "/log";
-  work.entryFile = work.entryDirectory + "/" + ymd + ".csv";
-
-  work.emailDirectory = config.app.logDirectory + "/" + testName + "/emails";
-  work.emailFile = work.emailDirectory + "/" + timeStamp + ".txt";
-
+  }
 }
 
 function test(testName, work) {
@@ -478,7 +426,8 @@ function test(testName, work) {
 
   for (let checkName in urlTests[testName].tests) {
 
-    if (checkName === "__comment") continue;  
+    if (checkName === "__comment") continue;
+
     if (urlTests[testName]["tests"][checkName] === false) {
       fails--;
       continue;
@@ -534,15 +483,15 @@ function test(testName, work) {
       } else {
         fails--;
       }
-
     }
-      if (checkName === "md5Changed" && results[L-1]["body"] != undefined) {
+
+    if (checkName === "md5Changed" && results[L-1]["body"] != undefined) {
       if (L > 1) {
         if (results[L-1].bodyMD5 != results[L-2].bodyMD5 && results[L-2]["bodyLength"] != -1) {
           work.testFailures.push(checkName);
           work.emailBody.push("❌: Current MD5 differs from that for last test");
         } else {
-          work.emailBody.push("✅: Current MD5 is same as that for last test");          
+          work.emailBody.push("✅: Current MD5 is same as that for last test");
           fails--;
         }
       } else {
@@ -550,9 +499,9 @@ function test(testName, work) {
       }
     }
 
-    if (checkName === "bodyRegExp" && results[L-1]["body"] != undefined) {
-      let re = new RegExp(urlTests[testName].tests[checkName][0], urlTests[testName].tests[checkName][1]);
-      if (!re.exec(results[L-1].body)) {
+    if (checkName === "bodyRegExp" && results[L-1]["body"] !== undefined) {
+      let re = new RegExp(urlTests[testName].tests[checkName][0], urlTests[testName].tests[checkName][1] || "");
+      if (!re.exec(results[L-1]["body"])) {
         work.testFailures.push(checkName);
         work.emailBody.push("❌: Body does not match regular expression '" 
               + urlTests[testName].tests[checkName][0] 
@@ -569,7 +518,7 @@ function test(testName, work) {
       }
     }
 
-    if (checkName === "firstByte" && results[L-1]["timeout"] == false) {
+    if (checkName === "firstByte" && results[L-1]["timeout"] === false) {
       if (results[L-1]["timingPhases"][checkName] > urlTests[testName].tests[checkName]) {
         work.testFailures.push(checkName);
         work.emailBody.push("❌: Time to first chunk of " 
@@ -585,7 +534,7 @@ function test(testName, work) {
       }
     }
 
-    if (checkName === "download" && results[L-1]["timeout"] == false) {
+    if (checkName === "download" && results[L-1]["timeout"] === false) {
       if (results[L-1]["timingPhases"][checkName] > urlTests[testName].tests[checkName]) {
         work.testFailures.push(checkName);
         work.emailBody.push("❌: Request transfer time of " 
@@ -620,6 +569,8 @@ function test(testName, work) {
   }
 
   // Prepare email
+
+  work.emailBodyList = [...work.emailBody]; // Copy array
 
   let requestDate = work.requestStartTime.toISOString().replace(/T.*/,'');
 
@@ -665,7 +616,7 @@ function test(testName, work) {
   if (fails > 0) {
     results[L-1].testError = true;
   }
-  
+
   work.testFails = fails;
 
   let sendFailEmail = false;
@@ -706,76 +657,326 @@ function test(testName, work) {
             + ".";
       log(reason);
       sendFailEmail = false;
-      work.emailNotSentReason = reason;     
+      work.emailNotSentReason = reason;
     }
   }
 
   if (sendFailEmail) {
     // If last email was fail email, don't send another.
     sendFailEmail = urlTests[testName]['lastEmail'] === 'fail' ? false : true;
-    if (!sendFailEmail) {
-      let reason = testName 
-            + ": Not sending fail email b/c fail email was last email sent.";
+    if (sendFailEmail === true) {
+      log("Sending fail email.");
+      urlTests[testName]['lastEmail'] = 'fail';
+    } else {
+      let reason = testName + ": Not sending fail email b/c fail email was last email sent.";
       log(reason);
       work.emailNotSentReason = reason;
-    } else {
-      log("Sending fail email.");
     }
   }
 
   if (sendPassEmail) {
     // Only send pass email if last email sent was about failure.
     sendPassEmail = urlTests[testName]['lastEmail'] === 'fail' ? true : false;
-    if (!sendPassEmail) {
-      let reason = testName 
-            + ": Not sending pass email b/c fail email was not yet sent.";
+    if (sendPassEmail === true) {
+      log("Sending pass email.");
+      urlTests[testName]['lastEmail'] = 'pass';
+    } else {
+      let reason = testName + ": Not sending pass email b/c fail email was not yet sent.";
       log(reason);
       work.emailNotSentReason = reason;
-    } else {
-      log("Sending pass email.");
     }
-  }
-
-  if (sendFailEmail) {
-     urlTests[testName]['lastEmail'] = 'fail';
-  }
-  if (sendPassEmail) {
-     urlTests[testName]['lastEmail'] = 'pass';
   }
 
   if (sendFailEmail || sendPassEmail) {
     work.emailTo = urlTests[testName]['emailAlertsTo'];
-    work.emailBody = body;  
+    work.emailBody = body;
+  } else {
+    work.emailBody = null;
   }
 
   // Put partial timestamp to in subject line to prevent email clients
   // from threading messages.
   let requestTime = work.requestStartTime.toISOString().substring(11,21);
-  
+
   if (sendFailEmail) {
-    work.emailSubject = "❌ "
-              + testName 
-              + " URLWatcher: "
-              + "Test Failure" + s
-              + " on " 
-              + config.app.hostname
-              + " @ " 
-              + requestTime;
+    work.emailSubject = "❌ "+ testName 
+                      + " URLWatcher: Test Failure" + s + " on " 
+                      + config.app.hostname + " @ " + requestTime;
     email(work);
   }
 
   if (sendPassEmail) {
-    work.emailSubject = "✅ " 
-              + testName 
-              + " URLWatcher: All Tests Passed"
-              + " on "
-              + config.app.hostname
-              + " @ " 
-              + requestTime;
+    work.emailSubject = "✅ " + testName 
+                      + " URLWatcher: All Tests Passed on " 
+                      + config.app.hostname + " @ " + requestTime;
     email(work);
   }
 
   report(testName, work);
+}
+
+
+// Misc functions
+
+function trimAbsolutePaths(results) {
+  if (!Array.isArray(results)) results = [results];
+  for (let result of results) {
+    for (let key in result) {
+      if (typeof(result[key]) === "string") {
+        result[key] = result[key].replace(__dirname + "/", "");
+      }
+    }
+  }
+}
+
+function writeResponseFile(work) {
+
+  // Remove absolute paths from strings.
+  let workClone = JSON.parse(JSON.stringify(work));
+  trimAbsolutePaths(workClone);
+  // TODO: Should also do tests before creating or appending to entry file above.
+  const inodeMin = 50000; // Change to percent?
+  const diskMin = 10000000;
+  let inodesNums = [-1,-1];
+  let inodeMsg = "";
+  let iswin32 = false;
+  if (process.platform !== 'win32') {
+      iswin32 = true;
+      // TODO: Make async. Don't bother checking if last 10 checks were OK?
+      // Better to catch out of disk space error and then report if issue is inode
+      // or disk space?
+      inodeNums = checkInodes(__dirname);
+      inodeMsg = "inodes Free:  " + inodeNums[1] + "\n"
+               + "inodes Avail: " + inodeNums[0] + " (min = " + inodeMin + ")\n";
+  }
+
+  chkDskSpace(__dirname).then((diskSpace) => {
+    // TODO: Don't bother checking if last 10 checks were OK?
+    // Send only once per day
+    // Send when fixed
+    if (diskSpace.free < diskMin || (iswin32 && inodeNums[1] < inodeMin)) {
+        //console.log(diskSpace)
+        if (app['lastEmail'] == false) {
+        app['lastEmail'] = true;
+        log("report(): Sending low disk email",'error');
+        let title = "URLWatcher low disk resources on " + config.app.hostname + " at " + (new Date()).toISOString();
+        let body =   "Disk Free:    " + diskSpace.free + " (min = " + diskMin + ")\n" 
+                   + "Disk Size:    " + diskSpace.size + "\n"
+                   + inodeMsg
+                   + "Will not write result file.";
+        email(config.app.emailStatusTo, title, body);
+      } else {
+        log("Not sending low disk email; already sent.");
+      }
+    } else {
+      if (app['lastEmail'] == true) {
+        app['lastEmail'] = false;
+        log("Disk issue fixed");
+        // TODO: Send email that problem fixed
+      }
+
+      let bodyChanged = false;
+      if (work.testFailures) {
+        bodyChanged = work.testFailures.includes("md5Changed") || work.testFailures.includes("lengthChanged") || work.testFailures.includes("bodyRegExp");
+      }
+
+      if (argv.debug || work.testFails > 0) {
+        if (bodyChanged === false || (work.headers && work.headers['content-type'] && work.headers['content-type'].includes("text") == false)) {
+          log("Removing body from response file because it did not change or is not text.");
+          delete workClone.body;
+        }
+        log("Writing response file " + work.workFile);
+        if (!fs.existsSync(work.workDirectory)) {
+          mkdirp.sync(work.workDirectory);
+        }
+        fs.writeFileSync(work.workFile, JSON.stringify(workClone, null, 4));
+        log("Wrote response file " + work.workFile);
+      }
+    }
+  });
+}
+
+function readConfig(configFile) {
+  // Read configuration file
+  if (fs.existsSync(configFile)) {
+    let tmp = fs.readFileSync(configFile);
+    var config = JSON.parse(tmp);
+    log("Read " + configFile);
+  } else {
+    // Allow app to start even if email configuration file not found.
+    log("File " + configFile + " not found. Exiting.", 'error');
+    process.exit(1);
+  }
+
+  if (!config.app.emailMethod) {
+    config.app.emailMethod = null;
+  }
+  let emailMethods = [null, "sendmail", "nodemailer","spawn"];
+  if (!emailMethods.includes(config.app.emailMethod)) {
+    log("readConfig(): config.app.emailMethod must be one of: " + emailMethods.join(","), 'error');
+    process.exit(1);
+  }
+
+  // Create log directory if it does not exist
+  config.app.logDirectory = __dirname + "/" + config.app.logDirectory;
+  if (!fs.existsSync(config.app.logDirectory)) {
+    mkdirp.sync(config.app.logDirectory);
+    log("Created log directory " + config.app.logDirectory);
+  }
+  return config;
+}
+
+function readTests() {
+
+  // Read URL test file
+  let urlTestsFileName = __dirname + "/" + config.app.urlTestsFile;
+  let urlTests;
+  if (fs.existsSync(urlTestsFileName)) {
+    let urlTestsFileBlob = fs.readFileSync(urlTestsFileName);
+    log("Reading " + urlTestsFileName);
+    try {
+      urlTests = JSON.parse(urlTestsFileBlob);
+    } catch (e) {
+      log("Could not JSON parse " + urlTestsFileName + ". Exiting.",'error');
+      process.exit(1);
+    }
+    log("Read " + urlTestsFileName);
+  } else {
+    log("File " + urlTestsFile + " not found. Exiting.",'error');
+    process.exit(1);
+  }
+
+  // TODO: Create JSON schema for test file and validate.
+  // TODO: Make urlTests an array instead of an object. 
+
+  // Replace references to files with content of file.
+  for (let testName in urlTests) {
+    if (typeof(urlTests[testName]) !== "string") {
+      urlTests[testName + "/" + urlTests[testName]['testName']] = JSON.parse(JSON.stringify(urlTests[testName]));
+      delete urlTests[testName];
+    } else {
+      let fname = __dirname + "/" + urlTests[testName];
+      log("Reading and parsing\n  " + fname);
+      if (!fs.existsSync(fname)) {
+        let msg = "File " + fname + " referenced in " + urlTestsFileName + " not found. Exiting.";
+        log(msg,'error');
+        process.exit(1);
+      }
+      let tmp = fs.readFileSync(fname);
+      try {
+        tmp = JSON.parse(tmp);
+      } catch (e) {
+        log("Could not JSON parse " + fname + ". Exiting.",'error');
+        process.exit(1);
+      }
+
+      delete urlTests[testName];
+      if (Array.isArray(tmp)) {
+        let k = 1;
+        for (let i = 0; i < tmp.length; i++) {
+          if ('testName' in tmp[i]) {
+            urlTests[testName + "/" + tmp[i]['testName']] = tmp[i];
+          } else {
+            urlTests[testName + "/" + k] = tmp[i];
+            k = k + 1;
+          }
+        }
+      }
+    }
+  }
+
+  for (let testName in urlTests) {
+
+    // Remove documentation nodes
+    delete urlTests[testName]["__comment"];
+    delete urlTests[testName]["tests"]["__comment"];
+
+    urlTests[testName]["emailThreshold"] = urlTests[testName]["emailThreshold"] || 1;
+
+    if (urlTests[testName]['emailAlerts']) {
+      let a = urlTests[testName]['emailAlertsTo'];
+      let b = urlTests[testName]['emailAlertsTo'] === '!!!!';
+      if (!a || b) {
+        log("emailAlerts = true and emailAlertsTo not given in test " + testName + ". Exiting.",'error');
+        process.exit(1);
+      }
+    }
+    // Create array to store past results.
+    if (readTests.urlTestsLast && readTests.urlTestsLast[testName]) {
+      urlTests[testName]["results"] = readTests.urlTestsLast[testName]["results"];
+    } else {
+      urlTests[testName]["results"] = [];
+    }
+
+  }
+
+  readTests.urlTestsLast = urlTests;
+  return urlTests;
+}
+
+function dumpmem(firstCall) {
+
+  let ISOString = (new Date()).toISOString();
+  let YMD = ISOString.substr(0,10);
+  let fileName = config.app.logDirectory + '/urlwatcher-memory-' + YMD + '.txt';
+  let logStr = ISOString;
+
+  if (firstCall) {
+    for (const [key,value] of Object.entries(process.memoryUsage())) {
+       logStr = logStr + "," + key;
+    }
+
+    fs.appendFile(fileName, "----\n" + logStr + "\n", function (err) {
+     if (err) throw err;
+    });
+    return;
+  }
+
+  for (const [key,value] of Object.entries(process.memoryUsage())) {
+      logStr = logStr + "," + parseInt(value/1000000);
+  }
+  fs.appendFile(fileName, logStr + "\n", function (err) {
+    if (err) throw err;
+  });
+}
+
+function publicURL(id, date) {
+
+  if (typeof(date) !== 'string') {
+    date = date.toISOString();
+  }
+
+  let ida = id.split("/");
+  let url = config.app.publicHTML 
+            + "#date=" 
+            + date.substring(0,10)
+            + "&"
+            + "category="
+            + ida[0]
+
+  if (ida.length > 0) {
+    url = url
+          + "&"
+          + "test="
+          + ida[1];    
+  }
+
+  return url;
+}
+
+function computeDirNames(testName, work) {
+
+  let timeStamp = new Date(work.requestStartTime).toISOString().replace(/Z/g,'');
+  work.workDirectory = config.app.logDirectory + "/" + testName + "/requests";
+  work.workFile = work.workDirectory + "/" + timeStamp + ".json";
+
+  let ymd = new Date(work.requestStartTime).toISOString().replace(/T.*/,"");
+  work.entryDirectory = config.app.logDirectory + "/" + testName + "/log";
+  work.entryFile = work.entryDirectory + "/" + ymd + ".csv";
+
+  work.emailDirectory = config.app.logDirectory + "/" + testName + "/emails";
+  work.emailFile = work.emailDirectory + "/" + timeStamp + ".txt";
+
 }
 
 function maskEmailAddress(addr) {
@@ -967,196 +1168,6 @@ function checkInodes(dir) {
                 });
     return [parseInt(cols[0][1]), parseInt(cols[0][3])];
 } 
-
-function writeResponseFile(work) {
-
-  // Remove absolute paths from strings.
-  let workClone = JSON.parse(JSON.stringify(work));
-  for (key in workClone) {
-    if (typeof(workClone[key]) === "string") {
-      workClone[key] = workClone[key].replace(__dirname + "/", "");
-    }
-  }
-
-  // TODO: Should also do tests before creating or appending to entry file above.
-  const inodeMin = 50000; // Change to percent?
-  const diskMin = 10000000;
-  let inodesNums = [-1,-1];
-  let inodeMsg = "";
-  let iswin32 = false;
-  if (process.platform !== 'win32') {
-      iswin32 = true;
-      // TODO: Make async. Don't bother checking if last 10 checks were OK?
-      // Better to catch out of disk space error and then report if issue is inode
-      // or disk space?
-      inodeNums = checkInodes(__dirname);
-      inodeMsg = "inodes Free:  " + inodeNums[1] + "\n"
-               + "inodes Avail: " + inodeNums[0] + " (min = " + inodeMin + ")\n";
-  }
-
-  chkDskSpace(__dirname).then((diskSpace) => {
-    // TODO: Don't bother checking if last 10 checks were OK?
-    // Send only once per day
-    // Send when fixed
-    if (diskSpace.free < diskMin || (iswin32 && inodeNums[1] < inodeMin)) {
-        //console.log(diskSpace)
-        if (app['lastEmail'] == false) {
-        app['lastEmail'] = true;
-        log("report(): Sending low disk email",'error');
-        let title = "URLWatcher low disk resources on " + config.app.hostname + " at " + (new Date()).toISOString();
-        let body =   "Disk Free:    " + diskSpace.free + " (min = " + diskMin + ")\n" 
-                   + "Disk Size:    " + diskSpace.size + "\n"
-                   + inodeMsg
-                   + "Will not write result file.";
-        email(config.app.emailStatusTo, title, body);
-      } else {
-        log("Not sending low disk email; already sent.");
-      }
-    } else {
-      if (app['lastEmail'] == true) {
-        app['lastEmail'] = false;
-        log("Disk issue fixed");
-        // TODO: Send email that problem fixed
-      }
-
-      let bodyChanged = false;
-      if (work.testFailures) {
-        bodyChanged = work.testFailures.includes("md5Changed") || work.testFailures.includes("lengthChanged") || work.testFailures.includes("bodyRegExp");
-      }
-
-      if (argv.debug || work.testFails > 0) {
-        if (bodyChanged == false || (work.headers && work.headers['content-type'] && work.headers['content-type'].includes("text") == false)) {
-          log("Removing body from response file because it did not change or is not text.");
-          delete workClone.body;
-        }
-        log("Writing response file " + work.workFile);
-        if (!fs.existsSync(work.workDirectory)) {
-          mkdirp.sync(work.workDirectory);
-        }
-        fs.writeFileSync(work.workFile, JSON.stringify(workClone, null, 4));
-        log("Wrote response file " + work.workFile);
-      }
-    }
-  });
-}
-
-function server() {
-
-  let express = require('express');
-  let serveIndex = require('serve-index');
-  let app = express();
-  //app.use(require('express-status-monitor')());
-
-  // The following is a hack to make the links work in a serve-index
-  // directory listing. serve-index always makes links in the
-  // listing relative to the server root, which will not be correct
-  // if this app is behind a reverse proxy.  If the path from which
-  // this app is served on the proxy changes from "/urlwatcher",
-  // this code must be updated. This is the method suggested by
-  // https://github.com/expressjs/serve-index/issues/53
-  // In the following it is assumed the app is served from
-  // http://server/urlwatcher. 
-  // TODO: Create fork of server-index and make fix there. The fix should
-  // only involve removing a leading slash so paths are not relative to the
-  // server root.
-  app.use(function (req, res, next) {
-    if (req['headers'].referer) {
-      req.originalUrl = "/urlwatcher" + req.url;
-    }
-    if (req.hostname !== 'localhost') {
-      req.originalUrl = "/urlwatcher" + req.url;
-    }
-    next();
-  })
-
-  app.use('/log', express.static(config.app.logDirectory));
-  app.use('/html', express.static(__dirname + '/html'));
-  app.use('/log', serveIndex(config.app.logDirectory, {icons: true, view: 'details'}));
-  app.use('/html', serveIndex(__dirname + '/html', {icons: true, view: 'details'}));
-
-  app.get('/', function(req, res) {
-    res.sendFile(__dirname + '/html/index.htm');
-  })
-
-  function addId(id, results) {
-    for (let idx in results) {
-      results[idx]['id'] = id;
-    }
-  }
-
-  app.get(/^\/status\/(.*)$/,
-    function(req, res) {
-      let results = [];
-      if (req.params[0] in urlTests) {
-        results = urlTests[req.params[0]]['results'];
-        addId(req.params[0], results);
-      } else {
-        let testIds = Object.keys(urlTests);
-        let prefix;
-        for (id of testIds) {
-          prefix = id.split("/")[0];
-          if (prefix === req.params[0]) {
-            addId(id, urlTests[id]['results']);
-            results.push(urlTests[id]['results']);
-          }
-        }
-        results = results.flat();
-      }
-
-      let status = [];
-      for (result of results) {
-        let requestStartTime = result["requestStartTime"].toISOString();
-        status.push({
-          "time": requestStartTime,
-          "id": result["id"],
-          "error": result["testError"],
-          "url": result["url"],
-          "log": publicURL(result["id"], requestStartTime)
-        })
-      }
-      resultsJSON = JSON.stringify(results,null,2);
-      res.setHeader("Content-Type", "application/json");
-      res.end(JSON.stringify(status,null,2) + "\n");
-  })
-
-  let testNames = Object.keys(urlTests);
-  app.get('/log/tests.json',
-    function(req, res) {
-      res.setHeader("Content-Type", "application/json");
-      res.end(JSON.stringify(testNames)+"\n");
-  })
-
-  app.get(/^\/log\/(.*)\/log\/files\.json$/,
-    function(req, res) {
-      log("Request for " + req.params[0] + "/log/files.json");
-      if (!testNames.includes(req.params[0])) {
-        res.sendStatus(400);
-        return;
-      }
-      sendfiles(config.app.logDirectory + "/" + req.params[0] + "/log",
-        function(files) {
-          res.setHeader("Content-Type", "application/json");
-          res.end(JSON.stringify(files.reverse())+"\n");
-        }
-      );
-  });
-
-  function sendfiles(dir, cb) {
-    const fs = require('fs');
-    fs.readdir(dir, (err, files) => {
-      cb(files);
-    })
-  }
-
-  let server = app.listen(config.app.serverPort, function (err) {
-    if (err) {
-      log(err,'error');
-      process.exit(1);
-    } else {
-      log("Server is listening on port " + config.app.serverPort);
-    }
-  }); 
-}
 
 function log(msg, etype) {
 

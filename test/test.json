@@ -8,6 +8,8 @@
 		"__comment": "Email address to send notice when an test error occurs.",
 		"emailAlertsTo": "!!!!",
 
+		"emailThreshold": 2,
+
 		"__comment": "The URL to test",
 		"url": "http://localhost:4444/html/test.html",
 
