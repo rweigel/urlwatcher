@@ -1,0 +1,16 @@
+{
+	"app": {
+		"emailStatus": true,
+	  "emailStatusTo": "robert.s.weigel@gmail.com",
+		"emailMethod": "spawn",
+		"debug": false,
+		"logDirectory": "log",
+		"hostname": "",
+		"urlTestsFile": "private/hapi/hapi-testservers.json",
+		"serverPort": 4444,
+		"publicHTML": "https://hapi-server.org/urlwatcher/"
+	},
+	"spawn": {
+		"from": "urlwatcher@bobweigel.net"
+	}
+}

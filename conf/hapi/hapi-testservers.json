@@ -1,0 +1,7 @@
+{
+    "TestData2.0": "private/hapi/servers/testdata2.0.json",
+    "TestData2.1": "private/hapi/servers/testdata2.1.json",
+    "TestData3.0": "private/hapi/servers/testdata3.0.json",
+    "TestData3.1": "private/hapi/servers/testdata3.1.json",
+    "TestData3.2": "private/hapi/servers/testdata3.2.json"
+}

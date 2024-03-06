@@ -1,0 +1,17 @@
+{
+    "AMDA": "conf/hapi/servers/amda.json",
+    "CDAWeb": "conf/hapi/servers/cdaweb.json",
+    "CCMC_ISWA": "conf/hapi/servers/ccmc_iswa.json",
+    "DAS2": "conf/hapi/servers/das2.json",
+    "DataShop": "conf/hapi/servers/datashop.json",
+    "LISIRD": "conf/hapi/servers/lisird.json",
+    "SSCWeb": "conf/hapi/servers/sscweb.json",
+    "VirES-for-SWARM": "conf/hapi/servers/vires.json",
+    "TestData2.0": "conf/hapi/servers/testdata2.0.json",
+    "TestData2.1": "conf/hapi/servers/testdata2.1.json",
+    "TestData3.0": "conf/hapi/servers/testdata3.0.json",
+    "TestData3.1": "conf/hapi/servers/testdata3.1.json",
+    "TestData3.2": "conf/hapi/servers/testdata3.2.json",
+    "hapi-server.org": "conf/hapi/servers/hapi-server.org.json",
+    "Helioviewer": "conf/hapi/servers/helioviewer.json"
+}

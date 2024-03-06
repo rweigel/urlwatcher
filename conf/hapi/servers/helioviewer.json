@@ -1,0 +1,37 @@
+[
+	{
+		"emailAlerts": false,
+		"emailAlertsTo": "",
+		"emailThreshold": 2,
+    	        "url": "https://api.helioviewer.org/hapi/Helioviewer/hapi",
+		"interval": 600000,
+		"testName": "landing",
+		"tests": {
+			"lengthChanged": true,
+			"statusCode": 200,
+			"md5Changed": false,
+			"firstByte": 1000,
+			"total": 2000,
+			"download": 1000,
+			"bodyRegExp": ["Helioviewer",""]
+		}
+	},
+	{
+		"emailAlerts": false,
+		"emailAlertsTo": "",
+		"emailThreshold": 2,
+	        "url": "https://api.helioviewer.org/hapi/Helioviewer/hapi/catalog",
+		"interval": 600000,
+		"testName": "catalog",
+		"tests": {
+			"lengthChanged": true,
+			"statusCode": 200,
+			"md5Changed": false,
+			"firstByte": 1000,
+			"total": 2000,
+			"download": 1000,
+			"bodyRegExp": ["EIT",""]
+		}
+	}
+]
+

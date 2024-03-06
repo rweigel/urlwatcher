@@ -1,0 +1,36 @@
+[
+	{
+		"emailAlerts": true,
+		"emailAlertsTo": "faden@cottagesystems.com",
+		"emailThreshold": 2,
+		"url": "http://planet.physics.uiowa.edu/das/das2Server/hapi",
+		"interval": 600000,
+		"testName": "landing",
+		"tests": {
+			"lengthChanged": true,
+			"statusCode": 200,
+			"md5Changed": false,
+			"firstByte": 1000,
+			"total": 2000,
+			"download": 1000,
+			"bodyRegExp": ["Das2",""]
+		}
+	},
+	{
+		"emailAlerts": true,
+		"emailAlertsTo": "faden@cottagesystems.com",
+		"emailThreshold": 2,
+		"url": "http://planet.physics.uiowa.edu/das/das2Server/hapi/catalog",
+		"interval": 600000,
+		"testName": "catalog",
+		"tests": {
+			"lengthChanged": true,
+			"statusCode": 200,
+			"md5Changed": false,
+			"firstByte": 1000,
+			"total": 2000,
+			"download": 1000,
+			"bodyRegExp": ["Cassini",""]
+		}
+	}
+]

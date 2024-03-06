@@ -2,4 +2,4 @@
   --max-old-space-size=96 \
   urlwatcher.js \
   -p 4444 \
-  -c private/hapi/hapi-testservers-config.json
+  -c conf/hapi/hapi-testservers-config.json

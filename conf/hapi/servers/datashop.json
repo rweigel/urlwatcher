@@ -1,0 +1,36 @@
+[
+	{
+		"emailAlerts": false,
+		"emailAlertsTo": "",
+		"emailThreshold": 2,
+		"url": "http://datashop.elasticbeanstalk.com/hapi",
+		"interval": 600000,
+		"testName": "landing",
+		"tests": {
+			"lengthChanged": true,
+			"statusCode": 200,
+			"md5Changed": false,
+			"firstByte": 1000,
+			"total": 2000,
+			"download": 1000,
+			"bodyRegExp": ["DataShop",""]
+		}
+	},
+	{
+		"emailAlerts": false,
+		"emailAlertsTo": "",
+		"emailThreshold": 2,
+		"url": "http://datashop.elasticbeanstalk.com/hapi/catalog",
+		"interval": 600000,
+		"testName": "catalog",
+		"tests": {
+			"lengthChanged": true,
+			"statusCode": 200,
+			"md5Changed": false,
+			"firstByte": 1000,
+			"total": 2000,
+			"download": 1000,
+			"bodyRegExp": ["CASSINI_MAG_HI_RES",""]
+		}
+	}
+]

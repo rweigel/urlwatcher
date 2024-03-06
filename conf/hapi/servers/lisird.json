@@ -1,0 +1,36 @@
+[
+	{
+		"emailAlerts": false,
+		"emailAlertsTo": "",
+		"emailThreshold": 2,
+		"url": "http://lasp.colorado.edu/lisird/hapi",
+		"interval": 600000,
+		"testName": "landing",
+		"tests": {
+			"lengthChanged": true,
+			"statusCode": 200,
+			"md5Changed": false,
+			"firstByte": 1000,
+			"total": 2000,
+			"download": 1000,
+			"bodyRegExp": ["LASP",""]
+		}
+	},
+	{
+		"emailAlerts": false,
+		"emailAlertsTo": "",
+		"emailThreshold": 2,
+		"url": "http://lasp.colorado.edu/lisird/hapi/catalog",
+		"interval": 600000,
+		"testName": "catalog",
+		"tests": {
+			"lengthChanged": true,
+			"statusCode": 200,
+			"md5Changed": false,
+			"firstByte": 1000,
+			"total": 2000,
+			"download": 1000,
+			"bodyRegExp": ["empire_tsi",""]
+		}
+	}
+]

@@ -1,0 +1,36 @@
+[
+	{
+		"emailAlerts": false,
+		"emailAlertsTo": "",
+		"emailThreshold": 2,
+		"url": "https://vires.services/hapi/",
+		"interval": 600000,
+		"testName": "landing",
+		"tests": {
+			"lengthChanged": true,
+			"statusCode": 200,
+			"md5Changed": false,
+			"firstByte": 1000,
+			"total": 2000,
+			"download": 1000,
+			"bodyRegExp": ["VirES",""]
+		}
+	},
+	{
+		"emailAlerts": false,
+		"emailAlertsTo": "",
+		"emailThreshold": 2,
+		"url": "https://vires.services/hapi/catalog",
+		"interval": 600000,
+		"testName": "catalog",
+		"tests": {
+			"lengthChanged": true,
+			"statusCode": 200,
+			"md5Changed": false,
+			"firstByte": 1000,
+			"total": 2000,
+			"download": 1000,
+			"bodyRegExp": ["SW_OPER_MAGA_LR_1B",""]
+		}
+	}
+]

@@ -1,0 +1,37 @@
+[
+	{
+		"emailAlerts": true,
+		"emailAlertsTo": "Robert.SWeigel@gmail.com",
+		"emailThreshold": 2,
+		"url": "https://amda.irap.omp.eu/service/hapi",
+		"interval": 600000,
+		"testName": "landing",
+		"tests": {
+			"lengthChanged": true,
+			"statusCode": 200,
+			"md5Changed": false,
+			"firstByte": 1000,
+			"total": 2000,
+			"download": 1000,
+			"bodyRegExp": ["amda",""]
+		}
+	},
+	{
+		"emailAlerts": true,
+		"emailAlertsTo": "Robert.SWeigel@gmail.com",
+		"emailThreshold": 2,
+		"url": "https://amda.irap.omp.eu/service/hapi/catalog",
+		"interval": 600000,
+		"testName": "catalog",
+		"tests": {
+			"lengthChanged": true,
+			"statusCode": 200,
+			"md5Changed": false,
+			"firstByte": 1000,
+			"total": 2000,
+			"download": 1000,
+			"bodyRegExp": ["ace-imf-all",""]
+		}
+	}
+]
+

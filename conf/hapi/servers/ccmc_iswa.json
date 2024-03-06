@@ -1,0 +1,36 @@
+[
+	{
+		"emailAlerts": false,
+		"emailAlertsTo": "",
+		"emailThreshold": 2,
+		"url": "https://iswa.gsfc.nasa.gov/IswaSystemWebApp/hapi",
+		"interval": 600000,
+		"testName": "catalog",
+		"tests": {
+			"lengthChanged": true,
+			"statusCode": 200,
+			"md5Changed": false,
+			"firstByte": 1000,
+			"total": 2000,
+			"download": 1000,
+			"bodyRegExp": ["ISWA",""]
+		}
+	},
+	{
+		"emailAlerts": false,
+		"emailAlertsTo": "",
+		"emailThreshold": 2,
+		"url": "https://iswa.gsfc.nasa.gov/IswaSystemWebApp/hapi/catalog",
+		"interval": 600000,
+		"testName": "landing",
+		"tests": {
+			"lengthChanged": true,
+			"statusCode": 200,
+			"md5Changed": false,
+			"firstByte": 1000,
+			"total": 2000,
+			"download": 1000,
+			"bodyRegExp": ["dscovr_mag_1m",""]
+		}
+	}
+]	
