@@ -202,21 +202,22 @@ function hashchange(evt) {
           + (evt.isTrigger ? true : false))
   console.log(evt);
 
-  let category = getHashValue('category');
-  if (!category || !(category in URLWatcher['categories'])) {
-    console.log("hashchange(): '" + category + "' not given or not valid.");
+  let categorySelected = getHashValue('category');
+  let category = categorySelected;
+  if (!categorySelected || !(categorySelected in URLWatcher['categories'])) {
+    console.log("hashchange(): '" + categorySelected + "' not given or not valid.");
     category = Object.keys(URLWatcher['categories'])[0];
   }
 
-  let categorySelected = getHashValue('category');
   let testSelected = getHashValue('test');
   let categories = Object.keys(URLWatcher['categories']);
   let tests = URLWatcher['categories'][categorySelected];
   let test = testSelected;
+  console.log('hashchange(): categorySelected = ' + categorySelected);
+  console.log('hashchange(): testSelected = ' + testSelected);
   if (!testSelected || !tests.includes(testSelected)) {
-    //alert('Invalid test. Resetting to default.');
-    tests = URLWatcher['categories'][categorySelected];
-    test = URLWatcher['categories'][categorySelected][0];
+    tests = URLWatcher['categories'][category];
+    test = URLWatcher['categories'][category][0];
   }
 
   $('#categoryDropdown').empty();
@@ -254,7 +255,7 @@ function hashchange(evt) {
       }
     } else {
       console.log('getDates().cb(): No date in hash. Setting to first test in list.');
-      date = date[0];
+      date = dates[0];
     }
 
     hashchange.selfTrigger = true;

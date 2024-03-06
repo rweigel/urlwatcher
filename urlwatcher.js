@@ -778,13 +778,12 @@ function writeResponseFile(work, testName) {
         let lastFile = "last" + condition + "BodyFile";
         if (urlTests[testName][lastBody] && urlTests[testName][lastBody] === JSON.stringify(work.body)) {
           log("Failing body has not changed since last fail.");
-          //fs.symlinkSync(urlTests[testName][lastFile], bodyFileName);
           workClone["bodyFile"] = urlTests[testName][lastFile];
         } else {
           urlTests[testName][lastBody] = JSON.stringify(work.body);
           urlTests[testName][lastFile] = bodyFileName;
           workClone["bodyFile"] = bodyFileName;
-          fs.writeFileSync(bodyFileName, JSON.stringify(work.body, null, 4));
+          fs.writeFileSync(bodyFileName, work.body || "");
           log("Wrote body file: " + bodyFileName);
         }
       }
