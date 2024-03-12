@@ -122,22 +122,6 @@ function server() {
   let app = express();
   //app.use(require('express-status-monitor')());
 
-  // Work-around of https://github.com/expressjs/serve-index/issues/90
-  app.use(function (req, res, next) {
-    //console.log("Initial req.originalUrl:     " + req.originalUrl);
-    //console.log("Initial req.headers.referer: " + req['headers'].referer);
-    //console.log("Initial req.hostname: " + req.hostname);
-    //console.log(req.headers)
-    if (req['headers'].referer) {
-      req.originalUrl = "/urlwatcher" + req.url;
-    }
-    if (req.hostname !== 'localhost') {
-      req.originalUrl = "/urlwatcher" + req.url;
-    }
-    //console.log("Final req.originalUrl: " + req.originalUrl);
-    next();
-  });
-
   app.use('/html', express.static(__dirname + '/html'));
   app.use('/html', serveIndex(__dirname + '/html', {icons: true, view: 'details'}));
   app.use('/log', express.static(config.app.logDirectory));
@@ -938,7 +922,7 @@ function dumpmem(firstCall) {
   }
 
   for (const [key,value] of Object.entries(process.memoryUsage())) {
-      logStr = logStr + "," + parseInt(value/1000000);
+    logStr = logStr + "," + parseInt(value/1000000);
   }
   fs.appendFile(fileName, logStr + "\n", function (err) {
     if (err) throw err;
@@ -1050,7 +1034,7 @@ function email(to, subject, text, cb) {
       }
       return;
   }
-  
+
   if (config.app.emailMethod === "spawn") {
     const {spawn} = require("child_process")
 
@@ -1058,8 +1042,12 @@ function email(to, subject, text, cb) {
                 ["/home/ubuntu/urlwatcher/test/email/sendmail.js",
                 to, config.spawn.from, subject, text]);
 
-    ls.stdout.on('data', (data) => {
+    //ls.stdout.on('data', (data) => {
       //console.log(`spawn stdout:\n${data}`);
+    //});
+
+    ls.on('exit', (code) => {
+      //ls = null;
     });
 
     ls.stderr.on('data', (data) => {
