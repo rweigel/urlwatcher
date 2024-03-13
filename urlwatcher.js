@@ -55,7 +55,7 @@ if (!fs.existsSync(config.app.logDirectory + '/_memory/')) {
 let urlTests = readTests();
 
 if (config.app.emailStatus) {
-  log("Sending start-up message to " + config.app.emailStatusTo);  
+  log("Sending start-up message to " + config.app.emailStatusTo);
   let html = prettyHtml(urlTests);
   let title = "URLWatcher started on " + config.app.hostname + " at " + (new Date()).toISOString();
   let body = "View results at " + config.app.publicHTML + "<br/>Configuration:<br/>" + html;
@@ -217,7 +217,7 @@ function report(testName, work) {
     statusCode = -1;
   }
 
-  let entry = new Date(work.requestStartTime).toISOString() 
+  let entry = new Date(work.requestStartTime).toISOString()
             + "," + statusCode
             + "," + round(work.timingPhases.firstByte)
             + "," + round(work.timingPhases.download)
@@ -239,6 +239,11 @@ function report(testName, work) {
   log("Wrote '" + testName + "' entry: " + entry.trim());
 
   writeResponseFile(work, testName);
+  work = null;
+
+  const ISOString = (new Date()).toISOString();
+  let fileName = config.app.logDirectory + '/_memory/urlwatcher-testJSON-' + ISOString + '.txt';
+  fs.writeFileSync(fileName, JSON.stringify(urlTests,null,2));
 
   // Re-read test file on each iteration?
   try {
@@ -248,10 +253,11 @@ function report(testName, work) {
   }
 
   // Queue next test on testName
-  setTimeout(() => {geturl(testName)}, urlTests[testName].interval)}
+  setTimeout(() => {geturl(testName)}, urlTests[testName].interval)
 
+}
 
-  function geturl(testName) {
+function geturl(testName) {
 
   function urlError(error, work) {
     if (error.hasOwnProperty("code")) {
@@ -275,7 +281,7 @@ function report(testName, work) {
       "url": url,
       "time": true,
       "timeout": urlTests[testName]["tests"].timeout,
-    	"headers": {"User-Agent": "urlwatcher;  https://github.com/hapi-server/servers"}
+    	"headers": {"User-Agent": "urlwatcher; https://github.com/hapi-server/servers"}
     };
 
     log(work.requestStartTime.toISOString() + ' Requesting: ' + url);
@@ -327,7 +333,7 @@ function report(testName, work) {
     });
     conn.on("connect", function(){
       conn.auth(function(err){
-        conn.get(work.url.split("/").slice(3).join("/"), 
+        conn.get(work.url.split("/").slice(3).join("/"),
           function (err, stream) {
             if (err){
               callback(work.options);
@@ -372,6 +378,7 @@ function test(testName, work) {
   if (urlTests[testName].results.length > 1 + urlTests[testName]["emailThreshold"]) {
     urlTests[testName].results.shift();
   }
+
   //urlTests[testName].results = JSON.parse(JSON.stringify(urlTests[testName].results));
   //console.log(urlTests[testName])
   //console.log(urlTests[testName].results)
@@ -382,7 +389,7 @@ function test(testName, work) {
     work.testFails  = -1;
     work.timingPhases = {'firstByte': -1, 'download': -1, 'total': -1};
   } else {
-    work.bodyMD5    = crypto.createHash("md5").update(work.body).digest("hex");         
+    work.bodyMD5    = crypto.createHash("md5").update(work.body).digest("hex");
     work.bodyLength = work.body.length;
   }
 
@@ -422,16 +429,16 @@ function test(testName, work) {
     if (checkName === "statusCode" && results[L-1][checkName] != undefined) {
       if (results[L-1][checkName] != urlTests[testName].tests[checkName]) {
         work.testFailures.push(checkName);
-        work.emailBody.push("❌: Status code of " 
-              + results[L-1][checkName] 
-              + " is not equal to " 
+        work.emailBody.push("❌: Status code of "
+              + results[L-1][checkName]
+              + " is not equal to "
               + urlTests[testName].tests[checkName]);
       } else {
         fails--;
-        work.emailBody.push("✅: Status code of " 
-              + results[L-1][checkName] 
-              + " is equal to " 
-              + urlTests[testName].tests[checkName]);       
+        work.emailBody.push("✅: Status code of "
+              + results[L-1][checkName]
+              + " is equal to "
+              + urlTests[testName].tests[checkName]);
       }
     }
 
@@ -441,14 +448,14 @@ function test(testName, work) {
         //console.log(checkName, L,results[L-1].bodyLength,results[L-2].bodyLength);
         if (results[L-1].bodyLength != results[L-2].bodyLength && results[L-2]["bodyLength"] != -1) {
           work.testFailures.push(checkName);
-          work.emailBody.push("❌: Current length of " 
-                + results[L-2].bodyLength 
-                + " differs from that for last test (" 
+          work.emailBody.push("❌: Current length of "
+                + results[L-2].bodyLength
+                + " differs from that for last test ("
                 + results[L-1].bodyLength + ")");
         } else {
           fails--;
-          work.emailBody.push("✅: Current length of " 
-                + results[L-2].bodyLength 
+          work.emailBody.push("✅: Current length of "
+                + results[L-2].bodyLength
                 + " is same as that for last test");
         }
       } else {
@@ -474,17 +481,17 @@ function test(testName, work) {
       let re = new RegExp(urlTests[testName].tests[checkName][0], urlTests[testName].tests[checkName][1] || "");
       if (!re.exec(results[L-1]["body"])) {
         work.testFailures.push(checkName);
-        work.emailBody.push("❌: Body does not match regular expression '" 
-              + urlTests[testName].tests[checkName][0] 
-              + "' with options '" 
-              + urlTests[testName].tests[checkName][1] 
+        work.emailBody.push("❌: Body does not match regular expression '"
+              + urlTests[testName].tests[checkName][0]
+              + "' with options '"
+              + urlTests[testName].tests[checkName][1]
               + "'");
       } else {
         fails--;
-        work.emailBody.push("✅: Body matches regular expression '" 
-              + urlTests[testName].tests[checkName][0] 
-              + "' with options '" 
-              + urlTests[testName].tests[checkName][1] 
+        work.emailBody.push("✅: Body matches regular expression '"
+              + urlTests[testName].tests[checkName][0]
+              + "' with options '"
+              + urlTests[testName].tests[checkName][1]
               + "'");
       }
     }
@@ -492,39 +499,39 @@ function test(testName, work) {
     if (checkName === "firstByte" && results[L-1]["timeout"] === false) {
       if (results[L-1]["timingPhases"][checkName] > urlTests[testName].tests[checkName]) {
         work.testFailures.push(checkName);
-        work.emailBody.push("❌: Time to first chunk of " 
-              + round(results[L-1]["timingPhases"][checkName]) 
-              + " > " + urlTests[testName].tests[checkName] 
+        work.emailBody.push("❌: Time to first chunk of "
+              + round(results[L-1]["timingPhases"][checkName])
+              + " > " + urlTests[testName].tests[checkName]
               + " ms");
       } else {
         fails--;
-        work.emailBody.push("✅: Time to first chunk of " 
-              + round(results[L-1]["timingPhases"][checkName]) 
-              + " <= " + urlTests[testName].tests[checkName] 
-              + " ms");       
+        work.emailBody.push("✅: Time to first chunk of "
+              + round(results[L-1]["timingPhases"][checkName])
+              + " <= " + urlTests[testName].tests[checkName]
+              + " ms");
       }
     }
 
     if (checkName === "download" && results[L-1]["timeout"] === false) {
       if (results[L-1]["timingPhases"][checkName] > urlTests[testName].tests[checkName]) {
         work.testFailures.push(checkName);
-        work.emailBody.push("❌: Request transfer time of " 
-              + round(results[L-1]["timingPhases"][checkName]) 
-              + " > " + urlTests[testName].tests[checkName] 
+        work.emailBody.push("❌: Request transfer time of "
+              + round(results[L-1]["timingPhases"][checkName])
+              + " > " + urlTests[testName].tests[checkName]
               + " ms");
       } else {
         fails--;
-        work.emailBody.push("✅: Request transfer time of " 
+        work.emailBody.push("✅: Request transfer time of "
               + round(results[L-1]["timingPhases"][checkName])
               + " <= " + urlTests[testName].tests[checkName]
-              + " ms");       
+              + " ms");
       }
     }
 
     if (checkName === "total" && results[L-1]["timeout"] == false) {
       if (results[L-1]["timingPhases"][checkName] > urlTests[testName].tests[checkName]) {
         work.testFailures.push(checkName);
-        work.emailBody.push("❌: Request time of " 
+        work.emailBody.push("❌: Request time of "
               + round(results[L-1]["timingPhases"][checkName])
               + " > " + urlTests[testName].tests[checkName]
               + " ms");
@@ -533,7 +540,7 @@ function test(testName, work) {
         work.emailBody.push("✅: Request time of "
               + round(results[L-1]["timingPhases"][checkName])
               + " <= " + urlTests[testName].tests[checkName]
-              + " ms");       
+              + " ms");
       }
     }
 
@@ -552,34 +559,34 @@ function test(testName, work) {
               .replace(/-/g,'');
 
   let body = "Test URL\n  "
-          + urlTests[testName].url 
-          + "\n\n" 
+          + urlTests[testName].url
+          + "\n\n"
           + work.emailBody.join("\n")
-          + "\n\nLast summary plot:\n  " 
+          + "\n\nLast summary plot:\n  "
           + publicURL(testName, requestDate)
 
     body = body
-        + "\n\nSummary file:\n  " 
-          + config.app.publicHTML 
+        + "\n\nSummary file:\n  "
+          + config.app.publicHTML
           + results[L-1].entryFile.replace(__dirname + "/", "")
-        + "\n\nTest configuration\n  " 
-          + config.app.publicHTML + "log/" 
+        + "\n\nTest configuration\n  "
+          + config.app.publicHTML + "log/"
           + testName + "/settings.json";
 
   if (L > 1) { // More than one test performed.
     // Assumes file from previous day exists.
-    body = body 
-          + "\n\nLast two response files:\n  " 
-          + config.app.publicHTML 
+    body = body
+          + "\n\nLast two response files:\n  "
+          + config.app.publicHTML
           + results[L-1].workFile.replace(__dirname + "/", "");
-    body = body 
+    body = body
           + "\n  "
           + config.app.publicHTML
           + results[L-2].workFile.replace(__dirname + "/", "");
   } else {
     body = body
           + "\n\nLast response file:\n  "
-          + config.app.publicHTML 
+          + config.app.publicHTML
           + results[L-1].workFile.replace(__dirname + "/", "");
   }
 
@@ -600,7 +607,7 @@ function test(testName, work) {
   }
   if (L > 1) {
     if (!results[L-1].testError && results[L-2].testError) {
-      sendPassEmail = true;     
+      sendPassEmail = true;
     }
   }
 
@@ -620,11 +627,11 @@ function test(testName, work) {
       sendFailEmail = true;
     }
     if (n > 0 && n < emailThreshold) {
-      let reason = testName 
-            + ": Not sending fail email b/c number of consecutive failures (" 
-            + n 
-            + ") is less than " 
-            + emailThreshold 
+      let reason = testName
+            + ": Not sending fail email b/c number of consecutive failures ("
+            + n
+            + ") is less than "
+            + emailThreshold
             + ".";
       log(reason);
       sendFailEmail = false;
@@ -670,18 +677,19 @@ function test(testName, work) {
   let requestTime = work.requestStartTime.toISOString().substring(11,21);
 
   if (sendFailEmail) {
-    work.emailSubject = "❌ "+ testName 
-                      + " URLWatcher: Test Failure" + s + " on " 
+    work.emailSubject = "❌ "+ testName
+                      + " URLWatcher: Test Failure" + s + " on "
                       + config.app.hostname + " @ " + requestTime;
     email(work);
   }
 
   if (sendPassEmail) {
-    work.emailSubject = "✅ " + testName 
-                      + " URLWatcher: All Tests Passed on " 
+    work.emailSubject = "✅ " + testName
+                      + " URLWatcher: All Tests Passed on "
                       + config.app.hostname + " @ " + requestTime;
     email(work);
   }
+  results = null;
   report(testName, work);
 }
 
@@ -711,6 +719,7 @@ function writeResponseFile(work, testName) {
   // Remove absolute paths from strings.
   let workClone = JSON.parse(JSON.stringify(work));
   trimAbsolutePaths(workClone);
+
   // TODO: Should also do tests before creating or appending to entry file above.
   const inodeMin = 50000; // Change to percent?
   const diskMin = 10000000;
@@ -737,7 +746,7 @@ function writeResponseFile(work, testName) {
         app['lastEmail'] = true;
         log("report(): Sending low disk email",'error');
         let title = "URLWatcher low disk resources on " + config.app.hostname + " at " + (new Date()).toISOString();
-        let body =   "Disk Free:    " + diskSpace.free + " (min = " + diskMin + ")\n" 
+        let body =   "Disk Free:    " + diskSpace.free + " (min = " + diskMin + ")\n"
                    + "Disk Size:    " + diskSpace.size + "\n"
                    + inodeMsg
                    + "Will not write result file.";
@@ -771,7 +780,7 @@ function writeResponseFile(work, testName) {
           log("Wrote body file: " + bodyFileName);
         }
       }
-      delete workClone["body"];
+
       let bodyFile;
       if (work.testError) {
         bodyFile = prepLasts("Fail");
@@ -781,6 +790,7 @@ function writeResponseFile(work, testName) {
       log("Writing response file " + work.workFile);
       fs.writeFileSync(work.workFile, JSON.stringify(workClone, null, 4));
       log("Wrote response file: " + work.workFile);
+      workClone = null;
     }
   });
 }
@@ -836,7 +846,7 @@ function readTests() {
   }
 
   // TODO: Create JSON schema for test file and validate.
-  // TODO: Make urlTests an array instead of an object. 
+  // TODO: Make urlTests an array instead of an object.
 
   // Replace references to files with content of file.
   for (let testName in urlTests) {
@@ -936,8 +946,8 @@ function publicURL(id, date) {
   }
 
   let ida = id.split("/");
-  let url = config.app.publicHTML 
-            + "#date=" 
+  let url = config.app.publicHTML
+            + "#date="
             + date.substring(0,10)
             + "&"
             + "category="
@@ -947,7 +957,7 @@ function publicURL(id, date) {
     url = url
           + "&"
           + "test="
-          + ida[1];    
+          + ida[1];
   }
 
   return url;
@@ -969,7 +979,7 @@ function computeDirNames(testName, work) {
 }
 
 function maskEmailAddress(addr) {
-    
+
   if (!addr) return "";
   addr = addr.split(",");
   for (let i = 0; i < addr.length; i++) {
@@ -1000,17 +1010,17 @@ function email(to, subject, text, cb) {
     if (!fs.existsSync(work.emailDirectory)) {
       mkdirp.sync(work.emailDirectory);
     }
-    log('Writing ' + work.emailFile.replace(__dirname + "/",""));  
+    log('Writing ' + work.emailFile.replace(__dirname + "/",""));
     fs.writeFileSync(work.emailFile, email);
 
     log("Email to be sent:\n\n"
         + "--------------------------------------------------------\n"
-        + email 
+        + email
         + "\n--------------------------------------------------------\n");
   }
 
   if (!text) {
-      text = subject || "";
+    text = subject || "";
   }
 
   if (!config.app.emailMethod) {
@@ -1050,9 +1060,9 @@ function email(to, subject, text, cb) {
       //ls = null;
     });
 
-    ls.stderr.on('data', (data) => {
+    //ls.stderr.on('data', (data) => {
       //console.error(`spawn stderr:\n  ${data}`);
-    });
+    //});
 
     ls.on('close', (code) => {
       //console.log(`spawn exited with code ${code}`);
@@ -1073,7 +1083,7 @@ function email(to, subject, text, cb) {
     }, function(err, reply) {
       if (err) {
         log('Error when attempting to send email:')
-        log(err);     
+        log(err);
       } else {
         log('Email sent. Reply:')
       }
@@ -1090,7 +1100,7 @@ function email(to, subject, text, cb) {
       "port": config.nodemailer.port,
       ssl: true,
       auth: {
-        "user": config.nodemailer.user, 
+        "user": config.nodemailer.user,
         "pass": config.nodemailer.password
       }
     });
@@ -1131,9 +1141,9 @@ function shutdown() {
   if (config.app.emailStatus) {
     log('Sending stop email.');
     // TODO: Not working. See old URLWatch code, which worked.
-    let subj = "URLWatcher stopped on " 
-            + config.app.hostname 
-            + " at " 
+    let subj = "URLWatcher stopped on "
+            + config.app.hostname
+            + " at "
             + (new Date()).toISOString()
 
     email(config.app.emailStatusTo, subj, "", () => {process.exit(0);});
@@ -1160,7 +1170,7 @@ function checkInodes(dir) {
                     return columns;
                 });
     return [parseInt(cols[0][1]), parseInt(cols[0][3])];
-} 
+}
 
 function log(msg, etype) {
 
@@ -1200,12 +1210,12 @@ function exceptions(config) {
     log('Uncaught exception: ','error');
     log(err.stack,'error');
     if (config.app.emailStatus) {
-      email(config.app.emailStatusTo, "URLWatcher exception on " 
-        + config.app.hostname 
-        + " at " 
+      email(config.app.emailStatusTo, "URLWatcher exception on "
+        + config.app.hostname
+        + " at "
         + (new Date()).toISOString(), err.stack);
       log('Sent email to ' + config.app.emailStatusTo,'error');
-    } else {    
+    } else {
       log('Not sending email b/c emailStatus = false.','error');
     }
   })
