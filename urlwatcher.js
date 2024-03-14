@@ -209,10 +209,12 @@ function server() {
   });
 }
 
-function report(testName, work) {
+function report(testName) {
+
+  let L = urlTests[testName].results.length;
+  let work = urlTests[testName].results[L-1];
 
   let statusCode = work.statusCode;
-
   if (statusCode === undefined) {
     statusCode = -1;
   }
@@ -238,11 +240,8 @@ function report(testName, work) {
   fs.appendFileSync(work.entryFile, entry, 'utf8');
   log("Wrote '" + testName + "' entry: " + entry.trim());
 
-  //writeResponseFile(work, testName);
-  console.log(urlTests[testName].results);
-  work = null;
-  console.log(urlTests[testName].results);
-  process.exit(0)
+  writeResponseFile(work, testName);
+
   const ISOString = (new Date()).toISOString();
   let fileName = config.app.logDirectory + '/_testJSON/' + ISOString + '.txt';
   fs.writeFileSync(fileName, JSON.stringify(urlTests,null,2));
@@ -690,11 +689,10 @@ function test(testName, work) {
                       + config.app.hostname + " @ " + requestTime;
     email(work);
   }
-  results = null;
 
   log(work.requestStartTime.toISOString() + ' Tested: ' + work.url);
   dumpmem();
-  report(testName, work);
+  report(testName);
 }
 
 
@@ -770,25 +768,24 @@ function writeResponseFile(work, testName) {
       function prepLasts(work, condition) {
 
         let lastBodyFileKey = "last" + condition + "BodyFile";
-        let bodyFileName = work.workFile.replace(".json",".body.json");
+        let lastBodyFileMD5Key = "last" + condition + "BodyFileMD5";
 
-        let lastBodyContent = undefined;
-        if (urlTests[testName][lastBodyFileKey] !== undefined) {
-          dumpmem();
-          log(`Reading ${urlTests[testName][lastBodyFileKey]}`);
-          lastBodyContent = fs.readFileSync(urlTests[testName][lastBodyFileKey],'utf8');
-          log(`Read ${urlTests[testName][lastBodyFileKey]}`);
-          dumpmem();
-        }
-        if (lastBodyContent && lastBodyContent === work.body) {
+        let lastBodyFileMD5 = urlTests[testName][lastBodyFileMD5Key];
+        if (lastBodyFileMD5 && lastBodyFileMD5 === work.bodyMD5) {
           work[lastBodyFileKey] = urlTests[testName][lastBodyFileKey];
+          work[lastBodyFileMD5Key] = urlTests[testName][lastBodyFileMD5Key];
           log(`${condition} body has not changed since last request. Not writing body to file.`);
         } else {
+          let bodyFileName = work.workFile.replace(".json",".body.json");
           urlTests[testName][lastBodyFileKey] = bodyFileName;
+          urlTests[testName][lastBodyFileMD5Key] = work.bodyMD5;
           work[lastBodyFileKey] = bodyFileName;
+          work[lastBodyFileMD5Key] = work.bodyMD5;
+          log("Writing body file: " + bodyFileName);
           fs.writeFileSync(bodyFileName, work.body || "");
           log("Wrote body file: " + bodyFileName);
         }
+        delete work.body;
       }
 
       if (work.testError) {
@@ -798,16 +795,11 @@ function writeResponseFile(work, testName) {
       }
 
       // Remove absolute paths from strings.
-      //let work = JSON.parse(JSON.stringify(work));
       trimAbsolutePaths(work);
 
       log("Writing '" + testName + "' work file");
-      dumpmem();
       fs.writeFileSync(work.workFile, JSON.stringify(work, null, 2));
       log("Wrote '" + testName + "' work file");
-      dumpmem();
-      //workClone = null;
-      //dumpmem();
     }
   });
 }
@@ -965,10 +957,7 @@ function publicURL(id, date) {
             + ida[0]
 
   if (ida.length > 0) {
-    url = url
-          + "&"
-          + "test="
-          + ida[1];
+    url = url + "&" + "test=" + ida[1];
   }
 
   return url;
@@ -1062,29 +1051,27 @@ function email(to, subject, text, cb) {
   if (config.app.emailMethod === "spawn") {
     const {spawn} = require("child_process")
 
-    dumpmem();
     log('Spawning');
-    const ls = spawn("/home/ubuntu/.nvm/versions/node/v16.15.1/bin/node",
-                ["/home/ubuntu/urlwatcher/test/email/sendmail.js",
-                to, config.spawn.from, subject, text]);
+    const clSend = __dirname + "/test/email/sendmail.js";
+    const clArgs = [clSend, to, config.spawn.from, subject, text];
+    const child = spawn(process.execPath, clArgs);
 
     //ls.stdout.on('data', (data) => {
       //console.log(`spawn stdout:\n${data}`);
     //});
 
-    ls.on('exit', (code) => {
+    child.on('exit', (code) => {
       //ls = null;
     });
 
-    //ls.stderr.on('data', (data) => {
-      //console.error(`spawn stderr:\n  ${data}`);
-    //});
+    child.stderr.on('data', (data) => {
+      console.error(`spawn stderr:\n  ${data}`);
+    });
 
-    ls.on('close', (code) => {
+    child.on('close', (code) => {
       //console.log(`spawn exited with code ${code}`);
       if (cb) {
         log('Spawned');
-        dumpmem();
         log("Executing callback.")
         cb();
       }
