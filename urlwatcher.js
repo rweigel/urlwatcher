@@ -84,7 +84,7 @@ for (let testName in urlTests) {
     if (err) {
       log(err,'error');
     } else {
-      log("Wrote " + settingsFile.replace(__dirname + "/", ""));
+      log("Wrote " + settingsFile);
     }
   });
 
@@ -226,6 +226,7 @@ function report(testName, work) {
             + "," + work.testFails
             + "\n";
 
+  log("Writing '" + testName + "' entry: " + entry.trim());
   // Append entry to entry file in directory named TestName + "log"
   if (!fs.existsSync(work.entryDirectory)) {
     mkdirp.sync(work.entryDirectory);
@@ -235,14 +236,15 @@ function report(testName, work) {
     fs.appendFileSync(work.entryFile, "Date,status,ttfb,dl,total,size,fails\n", 'utf8');
   }
   fs.appendFileSync(work.entryFile, entry, 'utf8');
-
   log("Wrote '" + testName + "' entry: " + entry.trim());
 
-  writeResponseFile(work, testName);
+  //writeResponseFile(work, testName);
+  console.log(urlTests[testName].results);
   work = null;
-
+  console.log(urlTests[testName].results);
+  process.exit(0)
   const ISOString = (new Date()).toISOString();
-  let fileName = config.app.logDirectory + '/_memory/urlwatcher-testJSON-' + ISOString + '.txt';
+  let fileName = config.app.logDirectory + '/_testJSON/' + ISOString + '.txt';
   fs.writeFileSync(fileName, JSON.stringify(urlTests,null,2));
 
   // Re-read test file on each iteration?
@@ -253,7 +255,7 @@ function report(testName, work) {
   }
 
   // Queue next test on testName
-  setTimeout(() => {geturl(testName)}, urlTests[testName].interval)
+  setTimeout(() => {geturl(testName)}, urlTests[testName].interval);
 
 }
 
@@ -368,9 +370,8 @@ function geturl(testName) {
 
 function test(testName, work) {
 
+  log(work.requestStartTime.toISOString() + ' Testing: ' + work.url);
   dumpmem();
-
-  log(work.requestStartTime.toISOString() + ' Testing: '+ work.url);
 
   computeDirNames(testName, work);
 
@@ -623,7 +624,7 @@ function test(testName, work) {
         break;
       }
     }
-    if (n == emailThreshold) {
+    if (n === emailThreshold) {
       sendFailEmail = true;
     }
     if (n > 0 && n < emailThreshold) {
@@ -690,6 +691,9 @@ function test(testName, work) {
     email(work);
   }
   results = null;
+
+  log(work.requestStartTime.toISOString() + ' Tested: ' + work.url);
+  dumpmem();
   report(testName, work);
 }
 
@@ -716,10 +720,6 @@ function trimAbsolutePaths(results) {
 
 function writeResponseFile(work, testName) {
 
-  // Remove absolute paths from strings.
-  let workClone = JSON.parse(JSON.stringify(work));
-  trimAbsolutePaths(workClone);
-
   // TODO: Should also do tests before creating or appending to entry file above.
   const inodeMin = 50000; // Change to percent?
   const diskMin = 10000000;
@@ -736,15 +736,17 @@ function writeResponseFile(work, testName) {
                + "inodes Avail: " + inodeNums[0] + " (min = " + inodeMin + ")\n";
   }
 
+  log("Checking disk space");
   chkDskSpace(__dirname).then((diskSpace) => {
     // TODO: Don't bother checking if last 10 checks were OK?
     // Send only once per day
     // Send when fixed
+    log("Checked disk space");
     if (diskSpace.free < diskMin || (iswin32 && inodeNums[1] < inodeMin)) {
         //console.log(diskSpace)
         if (app['lastEmail'] == false) {
         app['lastEmail'] = true;
-        log("report(): Sending low disk email",'error');
+        log("Sending low disk email",'error');
         let title = "URLWatcher low disk resources on " + config.app.hostname + " at " + (new Date()).toISOString();
         let body =   "Disk Free:    " + diskSpace.free + " (min = " + diskMin + ")\n"
                    + "Disk Size:    " + diskSpace.size + "\n"
@@ -765,32 +767,47 @@ function writeResponseFile(work, testName) {
         mkdirp.sync(work.workDirectory);
       }
 
-      function prepLasts(condition) {
-        let bodyFileName = workClone.workFile.replace(".json",".body.json");
-        let lastBody = "last" + condition + "Body";
-        let lastFile = "last" + condition + "BodyFile";
-        if (urlTests[testName][lastBody] && urlTests[testName][lastBody] === JSON.stringify(work.body)) {
-          log("Failing body has not changed since last fail.");
-          workClone["bodyFile"] = urlTests[testName][lastFile];
+      function prepLasts(work, condition) {
+
+        let lastBodyFileKey = "last" + condition + "BodyFile";
+        let bodyFileName = work.workFile.replace(".json",".body.json");
+
+        let lastBodyContent = undefined;
+        if (urlTests[testName][lastBodyFileKey] !== undefined) {
+          dumpmem();
+          log(`Reading ${urlTests[testName][lastBodyFileKey]}`);
+          lastBodyContent = fs.readFileSync(urlTests[testName][lastBodyFileKey],'utf8');
+          log(`Read ${urlTests[testName][lastBodyFileKey]}`);
+          dumpmem();
+        }
+        if (lastBodyContent && lastBodyContent === work.body) {
+          work[lastBodyFileKey] = urlTests[testName][lastBodyFileKey];
+          log(`${condition} body has not changed since last request. Not writing body to file.`);
         } else {
-          urlTests[testName][lastBody] = JSON.stringify(work.body);
-          urlTests[testName][lastFile] = bodyFileName;
-          workClone["bodyFile"] = bodyFileName;
+          urlTests[testName][lastBodyFileKey] = bodyFileName;
+          work[lastBodyFileKey] = bodyFileName;
           fs.writeFileSync(bodyFileName, work.body || "");
           log("Wrote body file: " + bodyFileName);
         }
       }
 
-      let bodyFile;
       if (work.testError) {
-        bodyFile = prepLasts("Fail");
+        prepLasts(work, "Fail");
       } else {
-        bodyFile = prepLasts("Pass");
+        prepLasts(work, "Pass");
       }
-      log("Writing response file " + work.workFile);
-      fs.writeFileSync(work.workFile, JSON.stringify(workClone, null, 4));
-      log("Wrote response file: " + work.workFile);
-      workClone = null;
+
+      // Remove absolute paths from strings.
+      //let work = JSON.parse(JSON.stringify(work));
+      trimAbsolutePaths(work);
+
+      log("Writing '" + testName + "' work file");
+      dumpmem();
+      fs.writeFileSync(work.workFile, JSON.stringify(work, null, 2));
+      log("Wrote '" + testName + "' work file");
+      dumpmem();
+      //workClone = null;
+      //dumpmem();
     }
   });
 }
@@ -918,25 +935,19 @@ function dumpmem(firstCall) {
   let ISOString = (new Date()).toISOString();
   let YMD = ISOString.substr(0,10);
   let fileName = config.app.logDirectory + '/_memory/urlwatcher-memory-' + YMD + '.txt';
+
+  let usage = process.memoryUsage();
   let logStr = ISOString;
-
-  if (firstCall) {
-    for (const [key,value] of Object.entries(process.memoryUsage())) {
-       logStr = logStr + "," + key;
-    }
-
-    fs.appendFile(fileName, "----\n" + logStr + "\n", function (err) {
-     if (err) throw err;
-    });
-    return;
-  }
-
-  for (const [key,value] of Object.entries(process.memoryUsage())) {
+  for (const [key, value] of Object.entries(usage)) {
     logStr = logStr + "," + parseInt(value/1000000);
   }
-  fs.appendFile(fileName, logStr + "\n", function (err) {
-    if (err) throw err;
-  });
+  if (!fs.existsSync(fileName)) {
+    logStr = "time," + Object.keys(usage).join(",") + "\n" + logStr;
+    fs.writeFile(fileName, logStr + "\n", (err) => {if (err) throw err});
+  } else {
+    fs.appendFile(fileName, logStr + "\n", (err) => {if (err) throw err});
+  }
+  log(logStr);
 }
 
 function publicURL(id, date) {
@@ -1010,8 +1021,11 @@ function email(to, subject, text, cb) {
     if (!fs.existsSync(work.emailDirectory)) {
       mkdirp.sync(work.emailDirectory);
     }
-    log('Writing ' + work.emailFile.replace(__dirname + "/",""));
+    dumpmem();
+    log('Writing ' + work.emailFile);
     fs.writeFileSync(work.emailFile, email);
+    log('Wrote ' + work.emailFile);
+    dumpmem();
 
     log("Email to be sent:\n\n"
         + "--------------------------------------------------------\n"
@@ -1048,6 +1062,8 @@ function email(to, subject, text, cb) {
   if (config.app.emailMethod === "spawn") {
     const {spawn} = require("child_process")
 
+    dumpmem();
+    log('Spawning');
     const ls = spawn("/home/ubuntu/.nvm/versions/node/v16.15.1/bin/node",
                 ["/home/ubuntu/urlwatcher/test/email/sendmail.js",
                 to, config.spawn.from, subject, text]);
@@ -1067,6 +1083,8 @@ function email(to, subject, text, cb) {
     ls.on('close', (code) => {
       //console.log(`spawn exited with code ${code}`);
       if (cb) {
+        log('Spawned');
+        dumpmem();
         log("Executing callback.")
         cb();
       }
@@ -1184,6 +1202,7 @@ function log(msg, etype) {
   let e = new Error();
   let stack = e.stack.toString().split(/\r\n|\n/);
   let line = stack[2].replace(/.*\//,"").replace(/:(.*):.*/,":$1");
+  msg = msg.replace(__dirname + "/","");
   if (etype === 'error') {
     console.error(msgo + line + " " + clc.red(msg));
   } else if (etype === 'warning') {
@@ -1201,11 +1220,11 @@ function exceptions(config) {
   process.on('exit', function () {
     log("process.on('exit') called.");
     shutdown();
-  })
+  });
   process.on('SIGINT', function () {
     log("process.on('SIGINT') called.");
     shutdown();
-  })
+  });
   process.on('uncaughtException', function(err) {
     log('Uncaught exception: ','error');
     log(err.stack,'error');
@@ -1218,5 +1237,5 @@ function exceptions(config) {
     } else {
       log('Not sending email b/c emailStatus = false.','error');
     }
-  })
+  });
 }

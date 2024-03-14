@@ -13,5 +13,6 @@
     "TestData3.1": "conf/hapi/servers/testdata3.1.json",
     "TestData3.2": "conf/hapi/servers/testdata3.2.json",
     "hapi-server.org": "conf/hapi/servers/hapi-server.org.json",
-    "Helioviewer": "conf/hapi/servers/helioviewer.json"
+    "Helioviewer": "conf/hapi/servers/helioviewer.json",
+    "mag.gmu.edu": "conf/hapi/servers/mag.json"
 }

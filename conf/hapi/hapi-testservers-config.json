@@ -6,7 +6,7 @@
 		"debug": false,
 		"logDirectory": "log",
 		"hostname": "",
-		"urlTestsFile": "private/hapi/hapi-testservers.json",
+		"urlTestsFile": "conf/hapi/hapi-testservers.json",
 		"serverPort": 4444,
 		"publicHTML": "https://hapi-server.org/urlwatcher/"
 	},
