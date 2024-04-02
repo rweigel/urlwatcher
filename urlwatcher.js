@@ -235,16 +235,12 @@ function report(testName) {
   }
   if (!fs.existsSync(work.entryFile)) {
     // Write header if first entry
-    fs.appendFileSync(work.entryFile, "Date,status,ttfb,dl,total,size,fails\n", 'utf8');
+    fs.writeFileSync(work.entryFile, "Date,status,ttfb,dl,total,size,fails\n", 'utf8');
   }
   fs.appendFileSync(work.entryFile, entry, 'utf8');
   log("Wrote '" + testName + "' entry: " + entry.trim());
 
   writeResponseFile(work, testName);
-
-  const ISOString = (new Date()).toISOString();
-  let fileName = config.app.logDirectory + '/_testJSON/' + ISOString + '.txt';
-  fs.writeFileSync(fileName, JSON.stringify(urlTests,null,2));
 
   // Re-read test file on each iteration?
   try {
@@ -929,15 +925,19 @@ function dumpmem(firstCall) {
   let fileName = config.app.logDirectory + '/_memory/urlwatcher-memory-' + YMD + '.txt';
 
   let usage = process.memoryUsage();
+
+  usage.urlTests = JSON.stringify(urlTests).length
+
   let logStr = ISOString;
   for (const [key, value] of Object.entries(usage)) {
-    logStr = logStr + "," + parseInt(value/1000000);
+    logStr = logStr + "," + value;
   }
+
   if (!fs.existsSync(fileName)) {
     logStr = "time," + Object.keys(usage).join(",") + "\n" + logStr;
-    fs.writeFile(fileName, logStr + "\n", (err) => {if (err) throw err});
+    fs.writeFileSync(fileName, logStr + "\n", (err) => {if (err) throw err});
   } else {
-    fs.appendFile(fileName, logStr + "\n", (err) => {if (err) throw err});
+    fs.appendFileSync(fileName, logStr + "\n", (err) => {if (err) throw err});
   }
   log(logStr);
 }
@@ -1051,9 +1051,9 @@ function email(to, subject, text, cb) {
   if (config.app.emailMethod === "spawn") {
     const {spawn} = require("child_process")
 
-    log('Spawning');
     const clSend = __dirname + "/test/email/sendmail.js";
     const clArgs = [clSend, to, config.spawn.from, subject, text];
+    log(`Spawning ${process.execPath} ${clSend} ${to} ${config.spawn.from} ${subject} ${text}`);
     const child = spawn(process.execPath, clArgs);
 
     //ls.stdout.on('data', (data) => {
@@ -1061,7 +1061,7 @@ function email(to, subject, text, cb) {
     //});
 
     child.on('exit', (code) => {
-      //ls = null;
+      //child = null;
     });
 
     child.stderr.on('data', (data) => {
@@ -1069,7 +1069,7 @@ function email(to, subject, text, cb) {
     });
 
     child.on('close', (code) => {
-      //console.log(`spawn exited with code ${code}`);
+      log(`spawn exited with code ${code}`);
       if (cb) {
         log('Spawned');
         log("Executing callback.")
@@ -1215,7 +1215,7 @@ function exceptions(config) {
   process.on('uncaughtException', function(err) {
     log('Uncaught exception: ','error');
     log(err.stack,'error');
-    if (config.app.emailStatus) {
+    if (config.app.emailStatus && err.message !== exceptions.lastMessage) {
       email(config.app.emailStatusTo, "URLWatcher exception on "
         + config.app.hostname
         + " at "
@@ -1223,6 +1223,9 @@ function exceptions(config) {
       log('Sent email to ' + config.app.emailStatusTo,'error');
     } else {
       log('Not sending email b/c emailStatus = false.','error');
+    }
+    if (!exceptions.lastError) {
+      exceptions.lastMessage = err.message;
     }
   });
 }
