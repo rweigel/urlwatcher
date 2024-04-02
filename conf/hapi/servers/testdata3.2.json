@@ -18,7 +18,7 @@
     {
         "emailAlerts": true,
         "emailAlertsTo": "Robert.SWeigel@gmail.com",
-        "url": "https://hapi-server.org/servers/TestData3.2/hapi/data?id=dataset1&parameters=DE1/PWI/B_H&time.min=1970-01-01T00:00:00Z&time.max=1970-01-01T00:00:30Z",
+        "url": "https://hapi-server.org/servers/TestData3.2/hapi/data?datset=DE1/PWI/B_H&start=1981-09-16T02:19Z&stop=1981-09-17T19:24Z",
         "interval": 60000,
         "testName": "data",
         "tests": {
