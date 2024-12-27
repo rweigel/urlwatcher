@@ -11,6 +11,7 @@
     "mkdirp": "^0.5.1",
     "nodemailer": "^6.2.1",
     "request": "^2.88.0",
+    "requestretry": "^7.1.0",
     "sendmail": "^1.4.1",
     "serve-index": "git+https://github.com/rweigel/serve-index.git#master",
     "yargs": "^8.0.1"

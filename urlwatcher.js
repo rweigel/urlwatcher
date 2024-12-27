@@ -1,7 +1,8 @@
 const fs = require("fs");
 const os = require('os');
 
-const request     = require("request");
+//const request     = require("request");
+const request     = require("requestretry");
 const prettyHtml  = require('json-pretty-html').default;
 const sendmail    = require('sendmail')();
 const nodemailer  = require('nodemailer');
@@ -278,7 +279,9 @@ function geturl(testName) {
       "url": url,
       "time": true,
       "timeout": urlTests[testName]["tests"].timeout,
-    	"headers": {"User-Agent": "urlwatcher; https://github.com/hapi-server/servers"}
+      "headers": {"User-Agent": "urlwatcher; https://github.com/hapi-server/servers"},
+      "maxAttempts": urlTests[testName]["tests"].maxAttempts || 3,
+      "retryDelay": urlTests[testName]["tests"].retryDelay || 1000
     };
 
     log(work.requestStartTime.toISOString() + ' Requesting: ' + url);
