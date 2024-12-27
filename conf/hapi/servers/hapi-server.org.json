@@ -191,5 +191,22 @@
             "download": 1000,
             "bodyRegExp": ["verifier",""]
         }
+    },
+    {
+        "emailAlerts": true,
+        "emailAlertsTo": "Robert.SWeigel@gmail.com",
+	"url": "https://hapi-server.org/servers/proxy?url=https%3A%2F%2Fcdaweb.gsfc.nasa.gov%2Fhapi%2Fcatalog",
+	"interval": 60000,
+	"testName": "proxy",
+	"tests": {
+            "timeout": 2000,
+            "lengthChanged": true,
+            "statusCode": 200,
+            "md5Changed": true,
+            "firstByte": 1000,
+            "total": 2000,
+            "download": 1000,
+            "bodyRegExp": ["AC_H0",""]
+	}
     }
 ]

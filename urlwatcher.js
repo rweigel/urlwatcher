@@ -719,15 +719,14 @@ function writeResponseFile(work, testName) {
   const diskMin = 10000000;
   let inodesNums = [-1,-1];
   let inodeMsg = "";
-  let iswin32 = false;
-  if (process.platform !== 'win32') {
-      iswin32 = true;
+  let notWin32 = process.platform !== 'win32';
+  if (notWin32) {
       // TODO: Make async. Don't bother checking if last 10 checks were OK?
       // Better to catch out of disk space error and then report if issue is inode
       // or disk space?
       inodeNums = checkInodes(__dirname);
-      inodeMsg = "inodes Free:  " + inodeNums[1] + "\n"
-               + "inodes Avail: " + inodeNums[0] + " (min = " + inodeMin + ")\n";
+      inodeMsg = "inodes Free: " + inodeNums[1] + " (min = " + inodeMin + ")\n"
+               + "inodes Tot.: " + inodeNums[0] + "\n"
   }
 
   log("Checking disk space");
@@ -736,7 +735,7 @@ function writeResponseFile(work, testName) {
     // Send only once per day
     // Send when fixed
     log("Checked disk space");
-    if (diskSpace.free < diskMin || (iswin32 && inodeNums[1] < inodeMin)) {
+    if (diskSpace.free < diskMin || (notWin32 && inodeNums[1] < inodeMin)) {
         //console.log(diskSpace)
         if (app['lastEmail'] == false) {
         app['lastEmail'] = true;
