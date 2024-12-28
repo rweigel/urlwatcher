@@ -291,7 +291,7 @@ function geturl(testName) {
         work.statusCode = response.statusCode;
       }
 
-      if (attempts in response) {
+      if ('attempts' in response) {
         work.attempts = response.attempts;
       }
       work.requestError = false;
