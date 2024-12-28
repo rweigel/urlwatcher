@@ -28,7 +28,7 @@
             "firstByte": 1000,
             "total": 2000,
             "download": 1000,
-            "bodyRegExp": ["1981-09-17T05:43Z,https://cdaweb.gsfc.nasa.gov/pub/pre_generated_plots/de/pwi/1981/de1_pwi_0158_19810917_0543_B-H.png", ""]
+            "bodyRegExp": ["1981-09-16T02:19Z,1981-09-16T09:10Z,154,https://cdaweb.gsfc.nasa.gov/pub/pre_generated_plots/de/pwi/1981/de1_pwi_0154_19810916_0219_B-H.png,de1_pwi_0154_19810916_0219_B-H.png", ""]
         }
     }
 ]

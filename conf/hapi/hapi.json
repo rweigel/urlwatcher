@@ -4,6 +4,7 @@
     "CCMC_ISWA": "conf/hapi/servers/ccmc_iswa.json",
     "DAS2": "conf/hapi/servers/das2.json",
     "DataShop": "conf/hapi/servers/datashop.json",
+    "CSA": "conf/hapi/servers/csa.json",
     "LISIRD": "conf/hapi/servers/lisird.json",
     "SSCWeb": "conf/hapi/servers/sscweb.json",
     "VirES-for-SWARM": "conf/hapi/servers/vires.json",
