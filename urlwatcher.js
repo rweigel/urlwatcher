@@ -8,13 +8,16 @@ const sendmail    = require('sendmail')();
 const nodemailer  = require('nodemailer');
 const chkDskSpace = require('check-disk-space');
 const crypto      = require("crypto");
-const mkdirp      = require('mkdirp'); // Node 10 has native support for recursive directory creation.
+const mkdirp      = require('mkdirp');
 const clc         = require('chalk');
 const yargs       = require('yargs');
 
 const ver  = parseInt(process.version.slice(1).split('.')[0]);
-if (ver < 6) {
-  let msg = "node.js version >= 6 required. Version " + process.version + " is being used.";
+// Alternative approach: https://stackoverflow.com/a/41620850
+const verMin = 10
+if (ver < verMin) {
+  let msg = `node.js version >= {verMin} required. `
+  msg += `Version {process.version} is being used.`;
   log(msg, 'error');
   process.exit(1);
 }
@@ -48,10 +51,6 @@ if (argv.port && config.app.serverPort) {
 exceptions(config);
 
 config.app.hostname = config.app.hostname || os.hostname();
-
-if (!fs.existsSync(config.app.logDirectory + '/_memory/')) {
-  mkdirp.sync(config.app.logDirectory + '/_memory/');
-}
 
 let urlTests = readTests();
 
@@ -111,7 +110,7 @@ for (id of Object.keys(urlTests)) {
   testObj[testCategory].push(testComponent);
 }
 
-dumpmem(true);
+logMemory(true);
 
 // Start server for serving log files and plots.
 server();
@@ -292,6 +291,7 @@ function geturl(testName) {
         work.statusCode = response.statusCode;
       }
 
+      work.attempts = response.attempts;
       work.requestError = false;
       work.timeout = false;
       if (error) {
@@ -369,7 +369,7 @@ function geturl(testName) {
 function test(testName, work) {
 
   log(work.requestStartTime.toISOString() + ' Testing: ' + work.url);
-  dumpmem();
+  logMemory();
 
   computeDirNames(testName, work);
 
@@ -690,7 +690,7 @@ function test(testName, work) {
   }
 
   log(work.requestStartTime.toISOString() + ' Tested: ' + work.url);
-  dumpmem();
+  logMemory();
   report(testName);
 }
 
@@ -920,10 +920,14 @@ function readTests() {
   return urlTests;
 }
 
-function dumpmem(firstCall) {
+function logMemory(firstCall) {
 
   let ISOString = (new Date()).toISOString();
   let YMD = ISOString.substr(0,10);
+  let logDir = config.app.logDirectory + '/_memory/'
+  if (!fs.existsSync(logDir)) {
+    mkdirp.sync(logDir);
+  }
   let fileName = config.app.logDirectory + '/_memory/urlwatcher-memory-' + YMD + '.txt';
 
   let usage = process.memoryUsage();
@@ -1012,11 +1016,11 @@ function email(to, subject, text, cb) {
     if (!fs.existsSync(work.emailDirectory)) {
       mkdirp.sync(work.emailDirectory);
     }
-    dumpmem();
+    logMemory();
     log('Writing ' + work.emailFile);
     fs.writeFileSync(work.emailFile, email);
     log('Wrote ' + work.emailFile);
-    dumpmem();
+    logMemory();
 
     log("Email to be sent:\n\n"
         + "--------------------------------------------------------\n"
