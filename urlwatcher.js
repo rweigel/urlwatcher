@@ -1,8 +1,8 @@
 const fs = require("fs");
 const os = require('os');
 
-//const request     = require("request");
-const request     = require("requestretry");
+const request     = require("request");
+//const request     = require("requestretry");
 const prettyHtml  = require('json-pretty-html').default;
 const sendmail    = require('sendmail')();
 const nodemailer  = require('nodemailer');
@@ -254,7 +254,7 @@ function report(testName) {
 
 }
 
-function geturl(testName) {
+function geturl(testName, attempt) {
 
   function urlError(error, work) {
     if (error.hasOwnProperty("code")) {
@@ -283,48 +283,53 @@ function geturl(testName) {
       "retryDelay": urlTests[testName]["tests"].retryDelay || 1000
     };
 
+    if (attempt === undefined) {
+      attempt = 1;
+    }
     log(work.requestStartTime.toISOString() + ' Requesting: ' + url);
     request.get(opts, function (error, response, body) {
 
-      work.statusCode = undefined;
-      if (typeof(response) != "undefined") {
-        work.statusCode = response.statusCode;
+      if (error && attempt < opts.maxAttempts) {
+        log(`${testName} Attempt ${attempt} failed due to ${error.code}. Retrying in ${opts.retryDelay} ms.`);
+        setTimeout(() => {geturl(testName, attempt + 1)}, opts.retryDelay);
+        return;
       }
 
-      if ('attempts' in response) {
-        work.attempts = response.attempts;
+      work.body = body;
+      work.statusCode = undefined;
+      work.attempts = attempt
+      if (response) {
+        work.headers = response.headers;
+        work.statusCode = response.statusCode;
+        work.timingPhases = response.timingPhases;
       }
-      work.requestError = false;
+
       work.timeout = false;
+      work.requestError = false;
       if (error) {
-        if (work.requestError == false) {
           work.timeout = true;
           work.requestError = true;
           log('Response error. Calling urlError().');
           urlError(error, work);
-        } else {
-          log('Response error; urlError() already called.');
-        }
         return;
       }
 
-      work.timingPhases = response.timingPhases;
-      work.headers = response.headers;
-      work.body = body;
-
       test(testName, work);
+    })
 
-    })
-    .on("error", function (error) {
-      work.timeout = true;
-      if (work.requestError == undefined) {
-        work.requestError = true;
-        log('on("error") event. Calling urlError().');
-        urlError(error, work);
-      } else {
-        log('geturl(): on("error") event; urlError already called.');
-      }
-    })
+    /**
+     .on("error", function (error) {
+        work.timeout = true;
+        if (work.requestError == undefined) {
+          work.requestError = true;
+          log('on("error") event. Calling urlError().');
+          urlError(error, work);
+        } else {
+          log('geturl(): on("error") event; urlError already called.');
+        }
+÷    })
+    }
+    **/
   } else if (url.match(/^ftp/)) {
     // Not tested recently
     var FtpClient  = require("ftp");
@@ -675,7 +680,7 @@ function test(testName, work) {
 
   // Put partial timestamp to in subject line to prevent email clients
   // from threading messages.
-  let requestTime = work.requestStartTime.toISOString().substring(11,21);
+  let requestTime = work.requestStartTime.toISOString().substring(11,23);
 
   if (sendFailEmail) {
     work.emailSubject = "❌ "+ testName
