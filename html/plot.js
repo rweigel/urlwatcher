@@ -129,8 +129,7 @@ function plot(logFile, test, cb) {
         eventdatac['yaxis.range[0]'] = gd.layout.yaxis.range[0];
         eventdatac['yaxis.range[1]'] = gd.layout.yaxis.range[1];
         eventdatac['yaxis.autorange'] = false;
-        console.log('plotly_relayout(): Setting layout data on ' 
-              + id + " to ");
+        console.log('plotly_relayout(): Setting layout data on ' + id + " to ");
         console.log(eventdatac);
       }
 
@@ -284,20 +283,22 @@ function plot(logFile, test, cb) {
 
     let interval = URLWatcher['settings'][test]['interval'];
 
+    let minDate = new Date(data['date'][0]).getTime()
+    let maxDate = new Date(data['date'][data['date'].length-1]).getTime()
+    let vp = viewportWH();
+    let margin = layouts[p]['margin']['l'] + layouts[p]['margin']['r'];
     for (key in trace) {
       trace[key][p]['x'] = data['date'];
       trace[key][p]['y'] = data[key];
-      // Set bar width to slightly less than sampling period.
-      // TODO: Adjust this based on zoom level and bar width
-      // Can only see gaps for certain combinations.
-      trace[key][p]['width'] = 0.90*interval;
+      // Set width of bars to be about 2 pixels.
+      dt = 1000*Math.ceil((maxDate - minDate)/1000)
+      trace[key][p]['width'] = 2*dt/(vp.width - margin);
     }
 
     traces[p] = [trace['good'][p], trace['bad'][p], trace['nosample'][p]];
 
     let condition, condition_bad;
     if (paramID === 'fails') {
-
       // TODO: If height is too small, adjust tickvals or fontsize.
       layouts[p]['yaxis']['range'] = [-0.1, 8.1];
       layouts[p]['yaxis']['tickformat'] = ',d';
@@ -364,7 +365,7 @@ function plot(logFile, test, cb) {
     msg = condition_bad + units + " (N = " + data['Nbad'] + ")";
     trace['bad'][p].name = URLWatcher['plots'][p]['paramName'] + msg;
 
-    trace['nosample'][p].name = "No sample; connection error " + " (N = " + data['Nnosample'] + ")";
+    trace['nosample'][p].name = "No sample; connection error" + " (N = " + data['Nnosample'] + ")";
 
     let plot = document.getElementById(id);
     Plotly
@@ -440,7 +441,7 @@ function plot(logFile, test, cb) {
           bad = rows[r][key];
           Nbad = Nbad + 1;
         }
-        if (rows[r]['fails'] == -1) {
+        if (rows[r]['status'] == -1) {
           nosample = -threshold/10;
           Nnosample = Nnosample + 1;
         }
@@ -450,7 +451,7 @@ function plot(logFile, test, cb) {
           bad = rows[r][key];
           Nbad = Nbad + 1;
         }
-        if (rows[r][key] == -1) {
+        if (rows[r]['status'] == -1) {
           nosample = -0.1;
           Nnosample = Nnosample + 1;
         }

@@ -5,6 +5,7 @@
         "url": "https://hapi-server.org/servers/TestData3.2/hapi",
         "interval": 60000,
         "testName": "landing",
+        "emailThreshold": 2,
         "tests": {
             "lengthChanged": true,
             "statusCode": 200,

@@ -21,7 +21,7 @@
 		"__comment": "Any test may be omitted. Thes are all of the possible tests.",
 		"tests": {
 			"__comment": "Read and connection timeout. See https://github.com/request/request",
-			"timeout": 1000,
+			"timeout": 1,
 
 			"__comment": "Error triggered if response size changes and lengthChanged = true",
 			"lengthChanged": true,

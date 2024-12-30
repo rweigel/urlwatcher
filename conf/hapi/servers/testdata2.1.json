@@ -4,6 +4,7 @@
         "emailAlertsTo": "Robert.SWeigel@gmail.com",
         "url": "https://hapi-server.org/servers/TestData2.1/hapi",
         "interval": 60000,
+        "emailThreshold": 2,
         "testName": "landing",
         "tests": {
             "lengthChanged": true,

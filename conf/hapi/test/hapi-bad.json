@@ -1,0 +1,4 @@
+{
+  "DataShop": "conf/hapi/servers/datashop.json",
+  "Helioviewer": "conf/hapi/servers/helioviewer.json"
+}

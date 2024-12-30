@@ -18,10 +18,10 @@ let URLWatcher =
           'paramUnits': 'ms'
         }
       ],
-    'plotly': {
+    plotly: {
       options: {
         "displayModeBar": false,
-          "doubleClick": 'reset' // false, 'reset', 'autosize', or 'reset+autosize'
+        "doubleClick": 'reset' // false, 'reset', 'autosize', or 'reset+autosize'
       },
       trace: {
         good: {
@@ -59,6 +59,7 @@ let URLWatcher =
         }
       },
       layout: {
+        barmode: 'overlay',
         font: {family: 'Times', size: 16},
         hovermode: 'closest',
         hoverdistance: 1,

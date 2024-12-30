@@ -20,5 +20,9 @@
     "test": "bash test/test.sh",
     "start": "node urlwatcher.js -c private/app-config.json",
     "server": "nohup forever urlwatcher.js -c private/app-config.json"
+  },
+  "devDependencies": {
+    "eslint": "^8.57.0",
+    "standard": "^17.1.0"
   }
 }
