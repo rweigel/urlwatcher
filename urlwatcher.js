@@ -2,15 +2,16 @@ const fs = require('fs')
 const os = require('os')
 const path = require('path')
 
-const request = require('request')
-const prettyHtml = require('json-pretty-html').default
-const sendmail = require('sendmail')()
-const nodemailer = require('nodemailer')
-const chkDskSpace = require('check-disk-space')
+const clc = require('chalk')
+const cron = require('node-cron')
+const yargs = require('yargs')
 const crypto = require('crypto')
 const mkdirp = require('mkdirp')
-const clc = require('chalk')
-const yargs = require('yargs')
+const request = require('request')
+const sendmail = require('sendmail')()
+const prettyHtml = require('json-pretty-html').default
+const nodemailer = require('nodemailer')
+const chkDskSpace = require('check-disk-space')
 
 const ver = parseInt(process.version.slice(1).split('.')[0])
 // Alternative approach: https://stackoverflow.com/a/41620850
@@ -97,6 +98,42 @@ for (const testName in urlTests) {
   // Start test process
   log(testName, 'Starting first test for ' + testName)
   geturl(testName)
+}
+
+if (config.app.cron) {
+  // https://www.npmjs.com/package/node-cron
+  const expression = config.app.cron.expression
+  if (!cron.validate(expression)) {
+    log(null, `Cron expression '${expression}' is invalid. Exiting.`, 'error')
+    process.exit(0)
+  }
+  const msgo = `cron expression: ${expression}; Time Zone: ${config.app.cron.timezone}`
+  log(null, `Starting cron job. ${msgo}`)
+  cron.schedule(expression, () => {
+    const msg = `Running summary() due to ${msgo}`
+    log(null, msg)
+    summary()
+  })
+}
+
+function summary () {
+  for (const testName in urlTests) {
+    const lastResult = urlTests[testName].results[urlTests[testName].results.length - 1]
+    if (lastResult !== undefined) {
+      let body = ''
+      const subject = 'URLWatcher summary of tests in error state'
+      const inError = lastResult.resquestError || lastResult.testError
+      if (inError) {
+        body += `❌: ${testName}\n`
+        log(testName, `In error state: ${testName}`, 'error')
+      }
+      if (config.app.emailStatusTo) {
+        email(config.app.emailStatusTo, subject, body)
+      } else {
+        log(null, 'Not sending summary email b/c config.app.emailStatus = false.')
+      }
+    }
+  }
 }
 
 const testNames = Object.keys(urlTests)
@@ -283,7 +320,6 @@ function geturl (testName, attempt) {
       work.requestError = false
       work.errorMessage = undefined
 
-      let emsg
       let retry = false
       if (!error) {
         work.headers = response.headers
@@ -358,139 +394,147 @@ function test (testName, work) {
     const msg = '❌: ' + work.errorMessage
     work.emailBody.push(msg)
     fails = 1
-  } else {
-    for (const checkName in urlTests[testName].tests) {
-      if (checkName === '__comment') continue
+    processTestResults(testName, work, fails)
+    return
+  }
 
-      if (urlTests[testName].tests[checkName] === false) {
+  for (const checkName in urlTests[testName].tests) {
+    if (checkName === '__comment') continue
+
+    if (urlTests[testName].tests[checkName] === false) {
+      fails--
+      continue
+    }
+
+    if (checkName === 'timeout') {
+      const stime = urlTests[testName].tests[checkName]
+      if (results[L - 1][checkName] === true) {
+        work.testFailures.push(checkName)
+        const msg = '❌: Socket connection time' + ' > ' + stime + ' ms'
+        work.emailBody.push(msg)
+        fails = 1
+        break
+      } else {
+        const msg = '✅: Socket connection time' + ' <= ' + stime + ' ms'
+        work.emailBody.push(msg)
         fails--
-        continue
       }
+    }
 
-      if (checkName === 'timeout') {
-        const stime = urlTests[testName].tests[checkName]
-        if (results[L - 1][checkName] === true) {
+    if (checkName === 'statusCode') {
+      if (results[L - 1][checkName] !== urlTests[testName].tests[checkName]) {
+        work.testFailures.push(checkName)
+        let msg = '❌: Status code of ' + results[L - 1][checkName]
+        msg += ' is not equal to ' + urlTests[testName].tests[checkName]
+        work.emailBody.push(msg)
+      } else {
+        fails--
+        let msg = '✅: Status code of ' + results[L - 1][checkName]
+        msg += ' is equal to ' + urlTests[testName].tests[checkName]
+        work.emailBody.push(msg)
+      }
+    }
+
+    if (results[L - 1].body === undefined) {
+      continue
+    }
+
+    if (checkName === 'lengthChanged') {
+      if (L > 1) {
+        const msgo = 'length of ' + results[L - 2].bodyLength
+        if (results[L - 1].bodyLength !== results[L - 2].bodyLength && results[L - 2].bodyLength !== -1) {
           work.testFailures.push(checkName)
-          const msg = '❌: Socket connection time' + ' > ' + stime + ' ms'
+          let msg = '❌: Current ' + msgo
+          msg += ' differs from that for last test (' + results[L - 1].bodyLength + ')'
           work.emailBody.push(msg)
-          fails = 1
-          break
         } else {
-          const msg = '✅: Socket connection time' + ' <= ' + stime + ' ms'
-          work.emailBody.push(msg)
           fails--
+          const msg = '✅: Current ' + msgo + ' is same as that for last test'
+          work.emailBody.push(msg)
         }
+      } else {
+        fails--
       }
+    }
 
-      if (checkName === 'statusCode') {
-        if (results[L - 1][checkName] !== urlTests[testName].tests[checkName]) {
+    if (checkName === 'md5Changed') {
+      if (L > 1) {
+        if (results[L - 1].bodyMD5 !== results[L - 2].bodyMD5 && results[L - 2].bodyLength !== -1) {
           work.testFailures.push(checkName)
-          let msg = '❌: Status code of ' + results[L - 1][checkName]
-          msg += ' is not equal to ' + urlTests[testName].tests[checkName]
-          work.emailBody.push(msg)
+          work.emailBody.push('❌: Current MD5 differs from that for last test')
         } else {
-          fails--
-          let msg = '✅: Status code of ' + results[L - 1][checkName]
-          msg += ' is equal to ' + urlTests[testName].tests[checkName]
-          work.emailBody.push(msg)
-        }
-      }
-
-      if (results[L - 1].body === undefined) {
-        continue
-      }
-
-      if (checkName === 'lengthChanged') {
-        if (L > 1) {
-          const msgo = 'length of ' + results[L - 2].bodyLength
-          if (results[L - 1].bodyLength !== results[L - 2].bodyLength && results[L - 2].bodyLength !== -1) {
-            work.testFailures.push(checkName)
-            let msg = '❌: Current ' + msgo
-            msg += ' differs from that for last test (' + results[L - 1].bodyLength + ')'
-            work.emailBody.push(msg)
-          } else {
-            fails--
-            const msg = '✅: Current ' + msgo + ' is same as that for last test'
-            work.emailBody.push(msg)
-          }
-        } else {
+          work.emailBody.push('✅: Current MD5 is same as that for last test')
           fails--
         }
+      } else {
+        fails--
       }
+    }
 
-      if (checkName === 'md5Changed') {
-        if (L > 1) {
-          if (results[L - 1].bodyMD5 !== results[L - 2].bodyMD5 && results[L - 2].bodyLength !== -1) {
-            work.testFailures.push(checkName)
-            work.emailBody.push('❌: Current MD5 differs from that for last test')
-          } else {
-            work.emailBody.push('✅: Current MD5 is same as that for last test')
-            fails--
-          }
-        } else {
-          fails--
-        }
+    if (checkName === 'bodyRegExp') {
+      const re = new RegExp(urlTests[testName].tests[checkName][0], urlTests[testName].tests[checkName][1] || '')
+      let msgo = 'regular expression '
+      msgo += "'" + urlTests[testName].tests[checkName][0] + "'"
+      msgo += ' with options '
+      msgo += "'" + urlTests[testName].tests[checkName][1] + "'"
+      if (!re.exec(results[L - 1].body)) {
+        work.testFailures.push(checkName)
+        const msg = '❌: Body does not match ' + msgo
+        work.emailBody.push(msg)
+      } else {
+        fails--
+        const msg = '✅: Body matches ' + msgo
+        work.emailBody.push(msg)
       }
+    }
 
-      if (checkName === 'bodyRegExp') {
-        const re = new RegExp(urlTests[testName].tests[checkName][0], urlTests[testName].tests[checkName][1] || '')
-        let msgo = 'regular expression '
-        msgo += "'" + urlTests[testName].tests[checkName][0] + "'"
-        msgo += ' with options '
-        msgo += "'" + urlTests[testName].tests[checkName][1] + "'"
-        if (!re.exec(results[L - 1].body)) {
-          work.testFailures.push(checkName)
-          const msg = '❌: Body does not match ' + msgo
-          work.emailBody.push(msg)
-        } else {
-          fails--
-          const msg = '✅: Body matches ' + msgo
-          work.emailBody.push(msg)
-        }
+    if (checkName === 'firstByte') {
+      const msgo = 'Time to first chunk of ' + round(results[L - 1].timingPhases[checkName])
+      if (results[L - 1].timingPhases[checkName] > urlTests[testName].tests[checkName]) {
+        work.testFailures.push(checkName)
+        const msg = '❌: ' + msgo + ' > ' + urlTests[testName].tests[checkName] + ' ms'
+        work.emailBody.push(msg)
+      } else {
+        fails--
+        const msg = '✅: ' + msgo + ' <= ' + urlTests[testName].tests[checkName] + ' ms'
+        work.emailBody.push(msg)
       }
+    }
 
-      if (checkName === 'firstByte') {
-        const msgo = 'Time to first chunk of ' + round(results[L - 1].timingPhases[checkName])
-        if (results[L - 1].timingPhases[checkName] > urlTests[testName].tests[checkName]) {
-          work.testFailures.push(checkName)
-          const msg = '❌: ' + msgo + ' > ' + urlTests[testName].tests[checkName] + ' ms'
-          work.emailBody.push(msg)
-        } else {
-          fails--
-          const msg = '✅: ' + msgo + ' <= ' + urlTests[testName].tests[checkName] + ' ms'
-          work.emailBody.push(msg)
-        }
+    if (checkName === 'download') {
+      const msgo = 'Request transfer time of ' + round(results[L - 1].timingPhases[checkName])
+      if (results[L - 1].timingPhases[checkName] > urlTests[testName].tests[checkName]) {
+        work.testFailures.push(checkName)
+        const msg = '❌: ' + msgo + ' > ' + urlTests[testName].tests[checkName] + ' ms'
+        work.emailBody.push(msg)
+      } else {
+        fails--
+        const msg = '✅: ' + msgo + ' <= ' + urlTests[testName].tests[checkName] + ' ms'
+        work.emailBody.push(msg)
       }
+    }
 
-      if (checkName === 'download') {
-        const msgo = 'Request transfer time of ' + round(results[L - 1].timingPhases[checkName])
-        if (results[L - 1].timingPhases[checkName] > urlTests[testName].tests[checkName]) {
-          work.testFailures.push(checkName)
-          const msg = '❌: ' + msgo + ' > ' + urlTests[testName].tests[checkName] + ' ms'
-          work.emailBody.push(msg)
-        } else {
-          fails--
-          const msg = '✅: ' + msgo + ' <= ' + urlTests[testName].tests[checkName] + ' ms'
-          work.emailBody.push(msg)
-        }
-      }
-
-      if (checkName === 'total') {
-        const msgo = 'Request time of ' + round(results[L - 1].timingPhases[checkName])
-        if (results[L - 1].timingPhases[checkName] > urlTests[testName].tests[checkName]) {
-          work.testFailures.push(checkName)
-          const msg = '❌: ' + msgo + ' > ' + urlTests[testName].tests[checkName] + ' ms'
-          work.emailBody.push(msg)
-        } else {
-          fails--
-          const msg = '✅: ' + msgo + ' <= ' + urlTests[testName].tests[checkName] + ' ms'
-          work.emailBody.push(msg)
-        }
+    if (checkName === 'total') {
+      const msgo = 'Request time of ' + round(results[L - 1].timingPhases[checkName])
+      if (results[L - 1].timingPhases[checkName] > urlTests[testName].tests[checkName]) {
+        work.testFailures.push(checkName)
+        const msg = '❌: ' + msgo + ' > ' + urlTests[testName].tests[checkName] + ' ms'
+        work.emailBody.push(msg)
+      } else {
+        fails--
+        const msg = '✅: ' + msgo + ' <= ' + urlTests[testName].tests[checkName] + ' ms'
+        work.emailBody.push(msg)
       }
     }
   }
+  processTestResults(testName, work, fails)
+}
 
+function processTestResults (testName, work, fails) {
   // Prepare email
+
+  const results = urlTests[testName].results
+  const L = results.length
 
   work.emailBodyList = [...work.emailBody] // Copy array
 
@@ -928,9 +972,25 @@ function maskEmailAddress (addr) {
   return addr.join(',')
 }
 
+function emailPrint (testName, to, subject, text) {
+  text = text || subject || ''
+  let email = 'To: ' + maskEmailAddress(to) + '\n'
+  email += 'Subject: ' + subject + '\n'
+  email += 'Body:\n' + '  ' + text.replace(/\n/g, '\n  ')
+  log(testName, 'Email to be sent:\n\n' +
+    '--------------------------------------------------------\n' +
+    email +
+    '\n--------------------------------------------------------\n')
+  return email
+}
+
 function email (to, subject, text, cb) {
   let testName = null
-  if (typeof (to) === 'object') {
+
+  if (typeof (to) !== 'object') {
+    // TODO: Write to file
+    emailPrint(null, to, subject, text)
+  } else {
     // TODO: Handle email send failure.
     const work = to
     cb = subject
@@ -938,28 +998,16 @@ function email (to, subject, text, cb) {
     testName = work.testName
     subject = work.emailSubject
     text = work.emailBody || work.emailSubject || ''
-    const email = 'To: ' + maskEmailAddress(to) + '\n' +
-                'Subject: ' + subject + '\n' +
-                'Body:\n' +
-                '  ' + text.replace(/\n/g, '\n  ')
+    const emailContent = emailPrint(null, to, subject, text)
 
     if (!fs.existsSync(work.emailDirectory)) {
       mkdirp.sync(work.emailDirectory)
     }
     logMemory()
     log(testName, 'Writing ' + work.emailFile)
-    fs.writeFileSync(work.emailFile, email)
+    fs.writeFileSync(work.emailFile, emailContent)
     log(testName, 'Wrote ' + work.emailFile)
     logMemory()
-
-    log(testName, 'Email to be sent:\n\n' +
-        '--------------------------------------------------------\n' +
-        email +
-        '\n--------------------------------------------------------\n')
-  }
-
-  if (!text) {
-    text = subject || ''
   }
 
   if (!config.app.emailMethod) {

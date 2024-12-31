@@ -3,10 +3,14 @@
 		"emailStatus": true,
 	  "emailStatusTo": "robert.s.weigel@gmail.com",
 		"emailMethod": "spawn",
+		"cron": {
+			"timezone": "America/New_York",
+			"expression": "*/5 * * * * *"
+		},
 		"debug": false,
 		"logDirectory": "log",
 		"hostname": "",
-		"urlTestsFile": "conf/hapi/hapi-bad.json",
+		"urlTestsFile": "conf/hapi/test/hapi-bad.json",
 		"serverPort": 4444,
 		"publicHTML": "https://hapi-server.org/urlwatcher/"
 	},
