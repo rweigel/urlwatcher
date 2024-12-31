@@ -3,6 +3,10 @@
 		"emailStatus": true,
 	  "emailStatusTo": "robert.s.weigel@gmail.com",
 		"emailMethod": "spawn",
+		"cron": {
+			"timezone": "America/New_York",
+			"expression": "* * 7 * * *"
+		},
 		"debug": false,
 		"logDirectory": "log",
 		"hostname": "",
