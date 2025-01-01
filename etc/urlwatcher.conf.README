@@ -1,5 +1,0 @@
-# For Upstart
-sudo cp urlwatcher.conf /etc/init
-sudo start urlwatcher
-sudo tail /var/log/upstart/urlwatcher.log
- 
