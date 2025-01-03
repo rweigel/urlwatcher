@@ -117,22 +117,22 @@ if (config.app.cron) {
 }
 
 function summary () {
+  let body = ''
+  const subject = 'URLWatcher summary of tests in error state'
   for (const testName in urlTests) {
     const lastResult = urlTests[testName].results[urlTests[testName].results.length - 1]
     if (lastResult !== undefined) {
-      let body = ''
-      const subject = 'URLWatcher summary of tests in error state'
       const inError = lastResult.resquestError || lastResult.testError
       if (inError) {
         body += `❌: ${testName}\n`
         log(testName, `In error state: ${testName}`, 'error')
       }
-      if (config.app.emailStatusTo) {
-        email(config.app.emailStatusTo, subject, body)
-      } else {
-        log(null, 'Not sending summary email b/c config.app.emailStatus = false.')
-      }
     }
+  }
+  if (config.app.emailStatusTo) {
+    email(config.app.emailStatusTo, subject, body)
+  } else {
+    log(null, 'Not sending summary email b/c config.app.emailStatus = false.')
   }
 }
 
