@@ -296,68 +296,77 @@ function geturl (testName, attempt) {
 
   const url = urlTests[testName].url
   work.url = url
-  if (url.match(/^http/)) {
-    const opts = {
-      url,
-      time: true,
-      timeout: urlTests[testName].tests.timeout,
-      headers: { 'User-Agent': 'urlwatcher; https://github.com/hapi-server/servers' },
-      maxAttempts: urlTests[testName].tests.maxAttempts || 3,
-      retryDelay: urlTests[testName].tests.retryDelay || 1000
-    }
-
-    if (attempt === undefined) {
-      attempt = 1
-    }
-
-    log(testName, work.requestStartTime.toISOString() + ' Requesting: ' + url)
-
-    request.get(opts, function (error, response, body) {
-      work.body = body
-      work.timeout = false
-      work.attempts = attempt
-      work.statusCode = undefined
-      work.requestError = false
-      work.errorMessage = undefined
-
-      let retry = false
-      if (!error) {
-        work.headers = response.headers
-        work.statusCode = response.statusCode
-        work.timingPhases = response.timingPhases
-        if (response.statusCode === 200) {
-          test(testName, work)
-          return
-        } else {
-          retry = true
-          const status = response.statusCode
-          work.errorMessage = `Attempt ${attempt} failed due HTTP status = ${status} != 200.`
-        }
-      } else {
-        work.requestError = true
-        const emsg = `Attempt ${attempt} failed due to '${error.message}'.`
-        if (error.message === 'ETIMEDOUT') {
-          // No retry for timeout.
-          work.timeout = true
-          work.errorMessage = `${emsg} (No retry for ETIMEDOUT).`
-        } else {
-          retry = true
-          work.errorMessage = emsg
-        }
-      }
-      if (retry && attempt < opts.maxAttempts) {
-        const emsg = `${work.errorMessage} Retrying in ${opts.retryDelay} ms.`
-        log(testName, emsg, 'error')
-        setTimeout(() => { geturl(testName, attempt + 1) }, opts.retryDelay)
-      } else {
-        log(testName, `${work.errorMessage}`, 'error')
-        test(testName, work)
-      }
-    })
-  } else {
+  if (!url.match(/^http/)) {
     const emsg = `Protocol ${url.replace(/^(.*):.*/, '$1')} is not supported.`
     log(testName, emsg, 'error')
+    return
   }
+
+  let keepAliveAgent
+  if (url.startsWith('https')) {
+    keepAliveAgent = require('https').Agent({ keepAlive: true })
+  } else {
+    keepAliveAgent = require('http').Agent({ keepAlive: true })
+  }
+
+  const opts = {
+    url,
+    time: true,
+    timeout: urlTests[testName].tests.timeout,
+    headers: { 'User-Agent': 'urlwatcher; https://github.com/hapi-server/servers' },
+    maxAttempts: urlTests[testName].tests.maxAttempts || 3,
+    retryDelay: urlTests[testName].tests.retryDelay || 1000,
+    agent: keepAliveAgent
+  }
+
+  if (attempt === undefined) {
+    attempt = 1
+  }
+
+  log(testName, work.requestStartTime.toISOString() + ' Requesting: ' + url)
+
+  request.get(opts, function (error, response, body) {
+    work.body = body
+    work.timeout = false
+    work.attempts = attempt
+    work.statusCode = undefined
+    work.requestError = false
+    work.errorMessage = undefined
+
+    let retry = false
+    if (!error) {
+      work.headers = response.headers
+      work.statusCode = response.statusCode
+      work.timingPhases = response.timingPhases
+      if (response.statusCode === 200) {
+        test(testName, work)
+        return
+      } else {
+        retry = true
+        const status = response.statusCode
+        work.errorMessage = `Attempt ${attempt} failed due HTTP status = ${status} != 200.`
+      }
+    } else {
+      work.requestError = true
+      const emsg = `Attempt ${attempt} failed due to '${error.message}'.`
+      if (error.message === 'ETIMEDOUT') {
+        // No retry for timeout.
+        work.timeout = true
+        work.errorMessage = `${emsg} (No retry for ETIMEDOUT).`
+      } else {
+        retry = true
+        work.errorMessage = emsg
+      }
+    }
+    if (retry && attempt < opts.maxAttempts) {
+      const emsg = `${work.errorMessage} Retrying in ${opts.retryDelay} ms.`
+      log(testName, emsg, 'error')
+      setTimeout(() => { geturl(testName, attempt + 1) }, opts.retryDelay)
+    } else {
+      log(testName, `${work.errorMessage}`, 'error')
+      test(testName, work)
+    }
+  })
 }
 
 function test (testName, work) {
