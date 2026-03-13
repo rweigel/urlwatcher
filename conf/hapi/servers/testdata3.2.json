@@ -3,16 +3,16 @@
         "emailAlerts": true,
         "emailAlertsTo": "Robert.SWeigel@gmail.com",
         "url": "https://hapi-server.org/servers/TestData3.2/hapi",
-        "interval": 60000,
+        "interval": 300000,
         "testName": "landing",
         "emailThreshold": 2,
         "tests": {
             "lengthChanged": true,
             "statusCode": 200,
             "md5Changed": true,
-            "firstByte": 1000,
-            "total": 2000,
-            "download": 1000,
+            "firstByte": 2000,
+            "total": 4000,
+            "download": 2000,
             "bodyRegExp": ["HAPI 3.2", ""]
         }
     },
@@ -20,15 +20,15 @@
         "emailAlerts": true,
         "emailAlertsTo": "Robert.SWeigel@gmail.com",
         "url": "https://hapi-server.org/servers/TestData3.2/hapi/data?dataset=DE1/PWI/B_H&start=1981-09-16T02:19Z&stop=1981-09-17T19:24Z",
-        "interval": 60000,
+        "interval": 300000,
         "testName": "data",
         "tests": {
             "lengthChanged": true,
             "statusCode": 200,
             "md5Changed": true,
-            "firstByte": 1000,
-            "total": 2000,
-            "download": 1000,
+            "firstByte": 2000,
+            "total": 4000,
+            "download": 2000,
             "bodyRegExp": ["1981-09-16T02:19Z,1981-09-16T09:10Z,154,https://cdaweb.gsfc.nasa.gov/pub/pre_generated_plots/de/pwi/1981/de1_pwi_0154_19810916_0219_B-H.png,de1_pwi_0154_19810916_0219_B-H.png", ""]
         }
     }
