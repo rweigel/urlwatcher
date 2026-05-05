@@ -8,7 +8,8 @@ const yargs = require('yargs')
 const crypto = require('crypto')
 const mkdirp = require('mkdirp')
 const request = require('request')
-const sendmail = require('sendmail')()
+//const sendmail = require('sendmail')()
+const sendmail = require('sendmail')({'silent': true})
 const prettyHtml = require('json-pretty-html').default
 const nodemailer = require('nodemailer')
 const chkDskSpace = require('check-disk-space')
@@ -1122,14 +1123,13 @@ function email (to, subject, text, cb) {
       from: config.sendmail.from,
       to,
       subject,
-      html: text,
-      silent: true
+      html: text
     }, function (err, reply) {
       if (err) {
         log(testName, 'Error when attempting to send email:')
         log(testName, err)
       } else {
-        log(testName, 'Email sent. Reply:')
+          log(testName, `Email sent. Reply: ${reply}`)
       }
       if (cb) {
         log(testName, 'Executing callback.')
