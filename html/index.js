@@ -250,7 +250,7 @@ function hashchange(evt) {
               + date 
               + " is not in list of available tests: " 
               + dates.join(",") + ".");
-        alert('Invalid date. Resetting to default.')
+        alert('Invalid date or no data available. Resetting to default date.')
         setHashValue('date', dates[0]);
         return;
       }
