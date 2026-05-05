@@ -1,7 +1,7 @@
 [
 	{
 		"emailAlerts": true,
-		"emailAlertsTo": "Robert.SWeigel@gmail.com",
+		"emailAlertsTo": "rweigel@gmu.edu",
 		"emailThreshold": 2,
 		"url": "https://amda.irap.omp.eu/service/hapi",
 		"interval": 600000,
@@ -18,7 +18,7 @@
 	},
 	{
 		"emailAlerts": true,
-		"emailAlertsTo": "Robert.SWeigel@gmail.com",
+		"emailAlertsTo": "rweigel@gmu.edu",
 		"emailThreshold": 2,
 		"url": "https://amda.irap.omp.eu/service/hapi/catalog",
 		"interval": 600000,

@@ -1,7 +1,7 @@
 [
     {
         "emailAlerts": true,
-        "emailAlertsTo": "Robert.SWeigel@gmail.com",
+        "emailAlertsTo": "rweigel@gmu.edu",
         "url": "https://hapi-server.org/servers/TestData3.0/hapi",
         "interval": 300000,
         "testName": "landing",
@@ -18,7 +18,7 @@
     },
     {
         "emailAlerts": true,
-        "emailAlertsTo": "Robert.SWeigel@gmail.com",
+        "emailAlertsTo": "rweigel@gmu.edu",
         "url": "https://hapi-server.org/servers/TestData3.0/hapi/data?id=dataset1&parameters=spectra_time_dependent_bins&time.min=1970-01-01T00:00:00Z&time.max=1970-01-01T00:00:30Z",
         "interval": 300000,
         "testName": "data",

@@ -1,7 +1,7 @@
 [
 	{
 		"emailAlerts": true,
-		"emailAlertsTo": "Robert.SWeigel@gmail.com",
+		"emailAlertsTo": "rweigel@gmu.edu",
 		"emailThreshold": 1,
 		"url": "https://cdaweb.gsfc.nasa.gov/hapi",
 		"interval": 600000,
@@ -18,7 +18,7 @@
 	},
 	{
 		"emailAlerts": true,
-		"emailAlertsTo": "Robert.SWeigel@gmail.com",
+		"emailAlertsTo": "rweigel@gmu.edu",
 		"emailThreshold": 1,
 		"url": "https://cdaweb.gsfc.nasa.gov/hapi/catalog",
 		"interval": 600000,
@@ -35,7 +35,7 @@
 	},
 	{
 		"emailAlerts": true,
-		"emailAlertsTo": "Robert.SWeigel@gmail.com",
+		"emailAlertsTo": "rweigel@gmu.edu",
 		"emailThreshold": 1,
 		"url": "https://cdaweb.gsfc.nasa.gov/hapi/data?id=DSCOVR_H0_MAG&parameters=B1GSE&time.min=2019-06-08T00:00:00Z&time.max=2019-06-08T00:01:00.000Z",
 		"interval": 7200000,

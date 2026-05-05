@@ -1,7 +1,7 @@
 [
     {
         "emailAlerts": true,
-        "emailAlertsTo": "Robert.SWeigel@gmail.com",
+        "emailAlertsTo": "rweigel@gmu.edu",
         "url": "https://hapi-server.org/servers/TestData3.2/hapi",
         "interval": 300000,
         "testName": "landing",
@@ -18,7 +18,7 @@
     },
     {
         "emailAlerts": true,
-        "emailAlertsTo": "Robert.SWeigel@gmail.com",
+        "emailAlertsTo": "rweigel@gmu.edu",
         "url": "https://hapi-server.org/servers/TestData3.2/hapi/data?dataset=DE1/PWI/B_H&start=1981-09-16T02:19Z&stop=1981-09-17T19:24Z",
         "interval": 300000,
         "testName": "data",

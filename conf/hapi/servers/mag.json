@@ -1,7 +1,7 @@
 [
     {
         "emailAlerts": true,
-        "emailAlertsTo": "Robert.SWeigel@gmail.com",
+        "emailAlertsTo": "rweigel@gmu.edu",
         "url": "http://mag.gmu.edu/",
         "interval": 60000,
         "testName": "landing",
