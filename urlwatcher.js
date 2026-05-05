@@ -100,20 +100,36 @@ for (const testName in urlTests) {
   geturl(testName)
 }
 
-if (config.app.cron) {
+
+if (config.app.emailStatusCron) {
   // https://www.npmjs.com/package/node-cron
-  const expression = config.app.cron.expression
+  const expression = config.app.emailStatusCron.expression
   if (!cron.validate(expression)) {
     log(null, `Cron expression '${expression}' is invalid. Exiting.`, 'error')
     process.exit(0)
   }
-  const msgo = `cron expression: ${expression}; Time Zone: ${config.app.cron.timezone}`
-  log(null, `Starting cron job. ${msgo}`)
+  const msgo = `cron expression: ${expression}; Time Zone: ${config.app.emailStatusCron.timezone}`
+  log(null, `Starting emailStatus cron job. ${msgo}`)
   cron.schedule(expression, () => {
     const msg = `Running summary() due to ${msgo}`
     log(null, msg)
     summary()
   })
+}
+
+if (config.app.logDeleteCron) {
+  // https://www.npmjs.com/package/node-cron
+  const expression = config.app.logDeleteCron.expression
+  if (!cron.validate(expression)) {
+    log(null, `Cron expression '${expression}' is invalid. Exiting.`, 'error')
+    process.exit(0)
+  }
+  const msgo = `cron expression: ${expression}; Time Zone: ${config.app.logDeleteCron.timezone}`
+  log(null, `Starting logDelete cron job. ${msgo}`)
+  cron.schedule(expression, () => {
+    log(null, `Running deleteOldLogs() due to ${msgo}`)
+    deleteOldLogs()
+  }, { timezone: config.app.logDeleteCron.timezone })
 }
 
 function summary () {
@@ -133,6 +149,40 @@ function summary () {
     email(config.app.emailStatusTo, subject, body)
   } else {
     log(null, 'Not sending summary email b/c config.app.emailStatus = false.')
+  }
+}
+
+function deleteOldLogs () {
+  const logDelete = config.app.logDelete
+  if (!logDelete) {
+    log(null, 'deleteOldLogs(): config.app.logDelete not set. Skipping.')
+    return
+  }
+  const subDirMap = { emails: 'emails', logs: 'log', requests: 'requests' }
+  const now = Date.now()
+  for (const testName of Object.keys(urlTests)) {
+    for (const [configKey, dirName] of Object.entries(subDirMap)) {
+      const deleteAfterDays = logDelete[configKey] && logDelete[configKey].deleteAfterDays
+      if (!deleteAfterDays) continue
+      const dirPath = path.join(config.app.logDirectory, testName, dirName)
+      if (!fs.existsSync(dirPath)) continue
+      const files = fs.readdirSync(dirPath)
+      for (const file of files) {
+        const dateMatch = file.match(/^(\d{4}-\d{2}-\d{2})/)
+        if (!dateMatch) continue
+        const fileDate = new Date(dateMatch[1]).getTime()
+        const ageDays = (now - fileDate) / (1000 * 60 * 60 * 24)
+        if (ageDays > deleteAfterDays) {
+          const filePath = path.join(dirPath, file)
+          try {
+            fs.unlinkSync(filePath)
+            log(null, `deleteOldLogs(): Deleted ${filePath} (age: ${Math.floor(ageDays)} days)`)
+          } catch (e) {
+            log(null, `deleteOldLogs(): Failed to delete ${filePath}: ${e.message}`, 'error')
+          }
+        }
+      }
+    }
   }
 }
 

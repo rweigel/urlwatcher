@@ -18,7 +18,7 @@
 
 		"testName": "landing",
 
-		"__comment": "Any test may be omitted. Thes are all of the possible tests.",
+		"__comment": "Any test may be omitted. These are all of the possible tests.",
 		"tests": {
 			"__comment": "Read and connection timeout. See https://github.com/request/request",
 			"timeout": 1,

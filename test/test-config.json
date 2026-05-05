@@ -22,7 +22,24 @@
 		"serverPort": 4444,
 
 		"__comment": "URL where results can be viewed. Used in email alert messages.",
-		"publicHTML": "http://localhost:4444/"
+		"publicHTML": "http://localhost:4444/",
+
+		"logDeleteCron": {
+			"timezone": "America/New_York",
+			"expression": "*/5 * * * * *"
+		},
+		"logDelete": {
+			"emails": {
+				"deleteAfterDays": 0.00005787037
+			},
+			"logs": {
+				"deleteAfterDays": 0.00005787037
+			},
+			 "requests": {
+				"deleteAfterDays": 0.00005787037
+			 }
+		}
+
 	},
 	"sendmail": {
 		"__comment": "Alert messages with use this address in the 'From' field",

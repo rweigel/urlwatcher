@@ -3,7 +3,7 @@
 		"emailStatus": true,
 	  "emailStatusTo": "robert.s.weigel@gmail.com",
 		"emailMethod": "spawn",
-		"cron": {
+		"emailStatusCron": {
 			"timezone": "America/New_York",
 			"expression": "*/5 * * * * *"
 		},

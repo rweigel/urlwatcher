@@ -24,6 +24,6 @@
   },
   "devDependencies": {
     "eslint": "^8.57.0",
-    "standard": "^17.1.0"
+    "standard": "^17.1.2"
   }
 }

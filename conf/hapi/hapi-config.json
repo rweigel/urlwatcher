@@ -1,11 +1,23 @@
 {
 	"app": {
 		"emailStatus": true,
-	    "emailStatusTo": "rweigel@gmu.edu",
+    "emailStatusTo": "rweigel@gmu.edu",
 		"emailMethod": "sendmail",
-		"cron": {
+		"emailStatusCron": {
 			"timezone": "America/New_York",
 			"expression": "0 0 7 * * *"
+		},
+		"logDeleteCron": {
+			"timezone": "America/New_York",
+			"expression": "0 0 9 * * *"
+		},
+		"logDelete": {
+			"emails": {
+				"deleteAfterDays": 30
+			},
+			"requests": {
+				"deleteAfterDays": 90
+			}
 		},
 		"debug": false,
 		"logDirectory": "log",
