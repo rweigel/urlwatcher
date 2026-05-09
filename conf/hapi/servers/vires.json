@@ -10,9 +10,9 @@
 			"lengthChanged": true,
 			"statusCode": 200,
 			"md5Changed": false,
-			"firstByte": 1000,
-			"total": 2000,
-			"download": 1000,
+			"firstByte": 2000,
+			"total": 4000,
+			"download": 3000,
 			"bodyRegExp": ["VirES",""]
 		}
 	},
