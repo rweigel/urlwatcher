@@ -135,18 +135,27 @@ if (config.app.logDeleteCron) {
 
 function summary () {
   let body = ''
-  const subject = 'URLWatcher summary of tests in error state'
+  let nError = 0    
   for (const testName in urlTests) {
     const lastResult = urlTests[testName].results[urlTests[testName].results.length - 1]
     if (lastResult !== undefined) {
       const inError = lastResult.resquestError || lastResult.testError
       if (inError) {
+	nError = nError + 1
         body += `❌: ${testName}\n`
         log(testName, `In error state: ${testName}`, 'error')
       }
     }
   }
   if (config.app.emailStatusTo) {
+    let subject = ''
+    if (nError === 0) {
+      subject = 'No URLWatcher tests in error state'
+    } else if (nError === 1) {
+      subject = 'One URLWatcher test in error state'
+    } else {
+      subject = `${nError} URLWatcher tests in error state`
+    }
     email(config.app.emailStatusTo, subject, body)
   } else {
     log(null, 'Not sending summary email b/c config.app.emailStatus = false.')
