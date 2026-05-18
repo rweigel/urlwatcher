@@ -3,7 +3,7 @@
 		"emailAlerts": false,
 		"emailAlertsTo": "",
 		"emailThreshold": 2,
-		"url": "https://iswa.gsfc.nasa.gov/IswaSystemWebApp/hapi",
+		"url": "https://iswa.gsfc.nasa.gov/hapi",
 		"interval": 600000,
 		"testName": "landing",
 		"tests": {
@@ -20,7 +20,7 @@
 		"emailAlerts": false,
 		"emailAlertsTo": "",
 		"emailThreshold": 2,
-		"url": "https://iswa.gsfc.nasa.gov/IswaSystemWebApp/hapi/catalog",
+		"url": "https://iswa.gsfc.nasa.gov/hapi/catalog",
 		"interval": 600000,
 		"testName": "catalog",
 		"tests": {
